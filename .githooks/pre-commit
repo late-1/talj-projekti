@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "Running unit tests..."
+uv run pytest src/tests
+
+robot_suites=$(find src/tests -type f -name '*.robot' -print -quit)
+if [[ -n "$robot_suites" ]]; then
+  echo "Running Robot Framework tests..."
+  uv run robot src/tests
+fi
