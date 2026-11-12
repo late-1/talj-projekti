@@ -1,1 +1,3 @@
 # miniprojekti
+
+Lukekaa pelisäännöt.
