@@ -11,3 +11,6 @@ if [[ -n "$robot_suites" ]]; then
   echo "Running Robot Framework tests..."
   uv run robot src/tests
 fi
+
+echo "Running pylint..."
+uv run pylint src

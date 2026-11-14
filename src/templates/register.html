@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="narrow">
+  <p class="brand brand-heading">bibtexgen</p>
+  <h1>register</h1>
+  <form action="/register" method="post" class="form">
+    <p>
+      <label for="username">username ({{ limits.USERNAME_MIN_LENGTH }}-{{ limits.USERNAME_MAX_LENGTH }} characters)</label>
+      <input type="text" name="username" id="username" value="{{ username }}" autocomplete="username"
+             minlength="{{ limits.USERNAME_MIN_LENGTH }}" maxlength="{{ limits.USERNAME_MAX_LENGTH }}" required />
+    </p>
+    <p>
+      <label for="password">password (at least {{ limits.PASSWORD_MIN_LENGTH }} characters)</label>
+      <input type="password" name="password" id="password" autocomplete="new-password"
+             minlength="{{ limits.PASSWORD_MIN_LENGTH }}" maxlength="{{ limits.PASSWORD_MAX_LENGTH }}" required />
+    </p>
+    <p>
+      <label for="password_confirmation">password again</label>
+      <input type="password" name="password_confirmation" id="password_confirmation" autocomplete="new-password"
+             minlength="{{ limits.PASSWORD_MIN_LENGTH }}" maxlength="{{ limits.PASSWORD_MAX_LENGTH }}" required />
+    </p>
+    <input type="submit" value="create account" />
+  </form>
+  <p>
+    <a href="/login" class="button">back to log in</a>
+  </p>
+</div>
+{% endblock %}

@@ -1,0 +1,170 @@
+:root {
+  --text: #111111;
+  --muted: #8a8a8a;
+  --line: #d9d9d9;
+  --background: #ffffff;
+  --danger: #a12a2a;
+  --edge: 2.5rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+}
+
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+  background-color: var(--background);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover,
+a.active {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+h1 {
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin: 0 0 1.5rem 0;
+}
+
+/* top bar */
+
+.top-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 1.75rem var(--edge);
+}
+
+.nav-left {
+  display: flex;
+  gap: 1.75rem;
+}
+
+.nav-right {
+  display: flex;
+  gap: 1.75rem;
+  justify-content: flex-end;
+}
+
+.brand {
+  font-size: 1.15rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.brand-heading {
+  margin: 0 0 3rem 0;
+  text-align: center;
+}
+
+/* messages */
+
+.flash {
+  margin: 0 var(--edge) 1rem var(--edge);
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--danger);
+}
+
+/* forms */
+
+input[type="text"],
+input[type="password"],
+textarea {
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0.4rem 0;
+  outline: none;
+}
+
+textarea {
+  resize: vertical;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+  border-bottom-color: var(--text);
+}
+
+input[type="submit"],
+.button {
+  display: inline-block;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--text);
+  border-radius: 0;
+  padding: 0.35rem 1rem;
+  cursor: pointer;
+}
+
+input[type="submit"]:hover,
+.button:hover {
+  background: var(--text);
+  color: var(--background);
+  text-decoration: none;
+}
+
+.form label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.form p {
+  margin: 0 0 1.5rem 0;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.empty {
+  margin: 0;
+  padding: 3rem var(--edge);
+  color: var(--muted);
+}
+
+/* narrow pages: login, register, add reference */
+
+.narrow {
+  max-width: 26rem;
+  margin: 0 auto;
+  padding: 2rem var(--edge) 4rem var(--edge);
+  box-sizing: content-box;
+}
+
+.narrow .form + p {
+  margin-top: 1rem;
+}
+
+@media (max-width: 700px) {
+  :root {
+    --edge: 1.25rem;
+  }
+}

@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+
+{% block title %}Log in{% endblock %}
+
+{% block content %}
+<div class="narrow">
+  <p class="brand brand-heading">bibtexgen</p>
+  <h1>log in</h1>
+  <form action="/login" method="post" class="form">
+    <p>
+      <label for="username">username</label>
+      <input type="text" name="username" id="username" value="{{ username }}" autocomplete="username" required />
+    </p>
+    <p>
+      <label for="password">password</label>
+      <input type="password" name="password" id="password" autocomplete="current-password" required />
+    </p>
+    <input type="submit" value="log in" />
+  </form>
+  <p>
+    <a href="/register" class="button">register</a>
+  </p>
+</div>
+{% endblock %}
