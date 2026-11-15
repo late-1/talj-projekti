@@ -19,6 +19,22 @@ jobs:
       - name: Install dependencies
         run: uv sync
       - name: Run unit tests
-        run: ./test.sh
+        run: ./test.sh unit
+      - name: Install Playwright browser
+        run: uv run rfbrowser install --with-deps chromium
+      - name: Run robot tests
+        run: ./test.sh robot
+        env:
+          SKIP_BROWSER_INSTALL: 1
+      - name: Upload robot report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-report
+          path: |
+            log.html
+            report.html
+            output.xml
+            robot_server.log
       - name: Run pylint
         run: uv run pylint src

@@ -1,10 +1,11 @@
 import secrets
 from functools import wraps
 
-from flask import abort, flash, redirect, render_template, request, session
+from flask import abort, flash, jsonify, redirect, render_template, request, session
 
 import util
-from config import app
+from config import app, test_env
+from db_helper import reset_db
 from repositories import user_repository
 from util import UserInputError
 
@@ -102,3 +103,12 @@ def add_reference():
 @login_required
 def list_references():
     return render_template("references.html")
+
+
+# route for tests only
+if test_env:
+    @app.route("/reset_db")
+    def reset_database():
+        reset_db()
+        session.clear()
+        return jsonify({"message": "db reset"})

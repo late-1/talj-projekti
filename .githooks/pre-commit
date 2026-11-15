@@ -3,14 +3,9 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-echo "Running unit tests..."
-uv run pytest src/tests
-
-robot_suites=$(find src/tests -type f -name '*.robot' -print -quit)
-if [[ -n "$robot_suites" ]]; then
-  echo "Running Robot Framework tests..."
-  uv run robot src/tests
-fi
+# The browser tests (Robot Framework) are not run here, because they are slow
+# and need a free port. Run them with ./test.sh; GitHub Actions runs them too.
+./test.sh unit
 
 echo "Running pylint..."
 uv run pylint src

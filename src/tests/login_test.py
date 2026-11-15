@@ -219,3 +219,13 @@ def test_top_bar_marks_current_page(client, actions):
     page = client.get("/references").get_data(as_text=True)
     assert '<a href="/references" class="active"' in page
     assert '<a href="/add" class="active"' not in page
+
+
+# test helper route
+
+def test_reset_db_removes_users_and_logs_out(client, actions):
+    actions.register("maija")
+    response = client.get("/reset_db")
+    assert response.status_code == 200
+    assert user_count() == 0
+    assert actions.session() == {}

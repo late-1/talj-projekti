@@ -15,6 +15,7 @@ Nykyiset ominaisuudet:
 
 * macOS tai Linux
 * [uv](https://docs.astral.sh/uv/getting-started/installation/) (asentaa oikean Python-version ja kaikki riippuvuudet)
+* `curl` (vain testien ajamiseen)
 
 ## Sovelluksen käynnistäminen
 
@@ -46,8 +47,21 @@ uv run python src/db_helper.py
 ./test.sh
 ```
 
-Komento ajaa yksikkötestit (pytest). Testit käyttävät omaa väliaikaista
-tietokantaansa, joten ne eivät muuta sovelluksen tietoja.
+Komento ajaa sekä yksikkötestit (pytest) että selaintestit (Robot Framework).
+Testit käyttävät omia väliaikaisia tietokantojaan, joten ne eivät muuta
+sovelluksen tietoja. Ensimmäinen ajokerta lataa testiselaimen (Chromium), mikä
+kestää hetken.
+
+Testityypit voi ajaa myös erikseen:
+
+```
+./test.sh unit     # vain pytest, nopea
+./test.sh robot    # vain Robot Framework
+```
+
+Selaintestit käynnistävät sovelluksen porttiin 5001, joten pysäytä sovellus
+ennen niiden ajamista tai valitse toinen portti: `PORT=8000 ./test.sh`.
+Selaintestien jälkeen yksityiskohtainen raportti on tiedostossa `report.html`.
 
 ## Koodin tyylin tarkistus
 
@@ -67,10 +81,10 @@ Ota Git-hook käyttöön kerran tässä työkopiossa:
 git config core.hooksPath .githooks
 ```
 
-Tämän jälkeen `git commit` suorittaa ensin yksikkötestit (`uv run pytest src/tests`)
-ja pylintin (`uv run pylint src`). Jos `src/tests` sisältää Robot Frameworkin
-`.robot`-testejä, myös ne suoritetaan. Commit hyväksytään vain, jos kaikki
-menevät läpi.
+Tämän jälkeen `git commit` suorittaa ensin yksikkötestit (`./test.sh unit`) ja
+pylintin (`uv run pylint src`). Commit hyväksytään vain, jos molemmat menevät
+läpi. Selaintestejä ei ajeta commitin yhteydessä, koska ne ovat hitaampia; aja
+ne komennolla `./test.sh` ennen pushia.
 
 ## Projektin rakenne
 
@@ -88,4 +102,5 @@ src/entities/           tietoa kuvaavat luokat
 src/templates/          HTML-sivut
 src/static/main.css     tyylit
 src/tests/              yksikkötestit (pytest)
+src/story_tests/        selaintestit (Robot Framework)
 ```
