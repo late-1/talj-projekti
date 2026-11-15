@@ -37,6 +37,10 @@ init-hook = "import sys; sys.path.insert(0, 'src')"
 [tool.pylint.format]
 max-line-length = 100
 
+[tool.pylint.similarities]
+# short repeated blocks, such as the commit and rollback around a query, are fine
+min-similarity-lines = 8
+
 [tool.pylint.variables]
 allowed-redefined-builtins = ["id"]
 

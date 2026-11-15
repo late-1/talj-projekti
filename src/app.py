@@ -3,10 +3,11 @@ from functools import wraps
 
 from flask import abort, flash, jsonify, redirect, render_template, request, session
 
+import reference_types
 import util
 from config import app, test_env
 from db_helper import reset_db
-from repositories import user_repository
+from repositories import reference_repository, user_repository
 from util import UserInputError
 
 
@@ -15,6 +16,10 @@ def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if "user_id" not in session:
+            return redirect("/login")
+        # the account may have been removed after the session was started
+        if not user_repository.get_user(session["user_id"]):
+            session.clear()
             return redirect("/login")
         return view(*args, **kwargs)
     return wrapped
@@ -35,7 +40,7 @@ def start_session(user):
 
 @app.context_processor
 def template_constants():
-    return {"limits": util}
+    return {"limits": util, "reference_types": reference_types}
 
 
 @app.route("/")
@@ -93,10 +98,41 @@ def logout():
     return redirect("/login")
 
 
-@app.route("/add")
+@app.route("/add", methods=["GET", "POST"])
 @login_required
 def add_reference():
-    return render_template("add_reference.html")
+    if request.method == "GET":
+        entry_type = request.args.get("type")
+        if entry_type not in reference_types.ENTRY_TYPES:
+            entry_type = reference_types.DEFAULT_ENTRY_TYPE
+        return render_template(
+            "add_reference.html", entry_type=entry_type, values={}, cite_key="",
+        )
+
+    check_csrf()
+
+    entry_type = request.form.get("entry_type", "")
+    cite_key = request.form.get("cite_key", "").strip()
+
+    try:
+        fields = util.validate_reference(entry_type, request.form)
+        if cite_key:
+            util.validate_cite_key(cite_key)
+        reference = reference_repository.create_reference(
+            session["user_id"], entry_type, fields, cite_key
+        )
+    except UserInputError as error:
+        flash(str(error))
+        if entry_type not in reference_types.ENTRY_TYPES:
+            entry_type = reference_types.DEFAULT_ENTRY_TYPE
+        return render_template(
+            "add_reference.html",
+            entry_type=entry_type, values=request.form, cite_key=cite_key,
+        )
+
+    flash(f"Reference added with the key {reference.cite_key}", "notice")
+    # the form stays on the same type, which helps when adding several references
+    return redirect(f"/add?type={entry_type}")
 
 
 @app.route("/references")

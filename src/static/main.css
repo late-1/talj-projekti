@@ -83,6 +83,10 @@ h1 {
   color: var(--danger);
 }
 
+.flash.notice {
+  color: var(--text);
+}
+
 /* forms */
 
 input[type="text"],
@@ -137,6 +141,57 @@ input[type="submit"]:hover,
 
 .form p {
   margin: 0 0 1.5rem 0;
+}
+
+.form [hidden] {
+  display: none;
+}
+
+.form .hint {
+  display: block;
+  margin-top: 0.35rem;
+}
+
+/* choosing the reference type */
+
+.type-choice {
+  display: flex;
+  gap: 1.75rem;
+  border: none;
+  margin: 0 0 2rem 0;
+  padding: 0;
+}
+
+.type-choice legend {
+  padding: 0;
+  margin-bottom: 0.4rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.type-choice input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.form .type-choice label {
+  display: inline;
+  color: var(--text);
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.type-choice label:hover,
+.type-choice input:checked + label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.type-choice input:focus-visible + label {
+  outline: 1px solid var(--text);
+  outline-offset: 3px;
 }
 
 .muted {

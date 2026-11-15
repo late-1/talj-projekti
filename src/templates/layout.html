@@ -24,8 +24,8 @@
   </nav>
   {% endif %}
 
-  {% for message in get_flashed_messages() %}
-  <div class="flash">
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+  <div class="flash{% if category == "notice" %} notice{% endif %}">
     {{ message }}
   </div>
   {% endfor %}

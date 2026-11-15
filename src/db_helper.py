@@ -9,10 +9,11 @@ SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
 
 
 def tables():
-    """Returns all table names from the database"""
+    """Returns all table names from the database in the order they were created"""
     sql = text(
         "SELECT name FROM sqlite_master "
-        "WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
+        "ORDER BY rowid"
     )
     result = db.session.execute(sql)
     return [row[0] for row in result.fetchall()]
@@ -20,7 +21,8 @@ def tables():
 
 def reset_db():
     """Removes all rows from all tables"""
-    for table in tables():
+    # newest first, so that rows referring to other tables are removed first
+    for table in reversed(tables()):
         db.session.execute(text(f"DELETE FROM {table}"))
     db.session.commit()
 
@@ -42,7 +44,7 @@ def setup_db():
     tables_in_db = tables()
     if tables_in_db:
         print(f"Tables exist, dropping: {', '.join(tables_in_db)}")
-        for table in tables_in_db:
+        for table in reversed(tables_in_db):
             db.session.execute(text(f"DROP TABLE {table}"))
         db.session.commit()
 
@@ -51,13 +53,17 @@ def setup_db():
 
 
 def setup_db_if_missing():
-    """Creates the tables only when the database is empty"""
-    if tables():
-        return False
-
-    print("Creating database")
+    """
+    Creates the tables that do not exist yet and keeps the existing data.
+    Returns the names of the created tables.
+    """
+    tables_before = tables()
     create_tables()
-    return True
+    created = [table for table in tables() if table not in tables_before]
+
+    if created:
+        print(f"Created tables: {', '.join(created)}")
+    return created
 
 
 if __name__ == "__main__":

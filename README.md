@@ -10,6 +10,10 @@ Lukekaa [pelisäännöt](pelisaannot.md).
 Nykyiset ominaisuudet:
 
 * käyttäjätunnuksen luominen, sisään- ja uloskirjautuminen
+* viitteen lisääminen lomakkeella: artikkeli (`article`), kirja (`book`) tai
+  konferenssijulkaisu (`inproceedings`)
+* viiteavain (`\cite{avain}`) luodaan automaattisesti kirjoittajan ja vuoden
+  perusteella, tai sen voi antaa itse
 
 ## Vaatimukset
 
@@ -27,7 +31,7 @@ Sovellus aukeaa osoitteeseen http://localhost:5001. Pysäytä se näppäimillä 
 
 Ensimmäisellä kerralla skripti asentaa riippuvuudet, luo `.env`-tiedoston
 satunnaisella salaisella avaimella ja luo tietokannan. Myöhemmillä kerroilla
-olemassa oleva tietokanta säilyy.
+olemassa oleva tietokanta säilyy, ja siihen lisätään puuttuvat taulut.
 
 Toisen portin käyttäminen:
 
@@ -96,7 +100,8 @@ src/app.py              reitit
 src/config.py           Flaskin ja tietokannan asetukset
 src/db_helper.py        tietokannan luominen ja tyhjentäminen
 src/schema.sql          tietokannan taulut
-src/util.py             syötteiden validointi
+src/util.py             syötteiden validointi, viiteavaimen muodostus
+src/reference_types.py  tuetut viitetyypit ja niiden kentät
 src/repositories/       tietokantakyselyt
 src/entities/           tietoa kuvaavat luokat
 src/templates/          HTML-sivut

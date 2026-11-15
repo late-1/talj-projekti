@@ -16,6 +16,30 @@ from db_helper import setup_db  # noqa: E402
 
 PASSWORD = "secret-password"
 
+ARTICLE = {
+    "entry_type": "article",
+    "author": "Martin, Robert",
+    "title": "Clean Code",
+    "journal": "Journal of Software",
+    "year": "2008",
+}
+
+BOOK = {
+    "entry_type": "book",
+    "author": "Fowler, Martin",
+    "title": "Refactoring",
+    "publisher": "Addison-Wesley",
+    "year": "1999",
+}
+
+INPROCEEDINGS = {
+    "entry_type": "inproceedings",
+    "author": "Vihavainen, Arto and Luukkainen, Matti",
+    "title": "Extreme Apprenticeship Method",
+    "booktitle": "SIGCSE '11",
+    "year": "2011",
+}
+
 
 @pytest.fixture(autouse=True)
 def database():
@@ -52,6 +76,16 @@ class Actions:
 
     def logout(self):
         return self.client.get("/logout")
+
+    def csrf_token(self):
+        return self.session().get("csrf_token", "")
+
+    def add_reference(self, csrf_token=None, **fields):
+        """Posts the add reference form; the defaults make a valid article"""
+        data = dict(ARTICLE)
+        data.update(fields)
+        data["csrf_token"] = self.csrf_token() if csrf_token is None else csrf_token
+        return self.client.post("/add", data=data)
 
     def session(self):
         with self.client.session_transaction() as session:
