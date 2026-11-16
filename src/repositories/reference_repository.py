@@ -67,3 +67,13 @@ def get_references(user_id):
     )
     result = db.session.execute(sql, {"user_id": user_id})
     return [_to_reference(row) for row in result.fetchall()]
+
+
+def get_reference(user_id, reference_id):
+    """Returns the reference only when it belongs to the user, otherwise None"""
+    sql = text(
+        f"SELECT {', '.join(COLUMNS)} FROM bib_references "
+        "WHERE id = :id AND user_id = :user_id"
+    )
+    row = db.session.execute(sql, {"id": reference_id, "user_id": user_id}).fetchone()
+    return _to_reference(row) if row else None

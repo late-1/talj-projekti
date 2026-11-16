@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ reference.cite_key }}{% endblock %}
+
+{% block content %}
+<div class="bibtex-view">
+  <div class="bibtex-actions">
+    <a href="{{ back }}" class="button" id="back">back</a>
+    <button type="button" class="button" id="copy" data-copy-target="bibtex">Copy</button>
+  </div>
+  <pre class="bibtex" id="bibtex">{{ bibtex }}</pre>
+</div>
+<script src="/static/copy.js"></script>
+{% endblock %}

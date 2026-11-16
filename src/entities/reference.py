@@ -16,6 +16,12 @@ class Reference:
 
     def __getattr__(self, name):
         # reference.author, reference.title, ...; None when the field is empty
-        if name == "fields":
+        if name == "fields" or name.startswith("__"):
             raise AttributeError(name)
         return self.fields.get(name)
+
+    @property
+    def venue(self):
+        """Where the reference was published: journal, proceedings or publisher"""
+        return self.fields.get("journal") or self.fields.get("booktitle") \
+            or self.fields.get("publisher")

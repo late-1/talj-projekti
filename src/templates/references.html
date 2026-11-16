@@ -3,5 +3,22 @@
 {% block title %}References{% endblock %}
 
 {% block content %}
-<p class="empty">No references yet.</p>
+{% if references %}
+<div class="reference-list">
+  <p class="muted reference-count">{{ references | length }} {{ "reference" if references | length == 1 else "references" }}</p>
+  {% for reference in references %}
+  <a href="/references/{{ reference.id }}?back={{ request.full_path | urlencode }}" class="reference-card">
+    <span class="reference-title">{{ reference.title }}</span>
+    <span class="reference-authors">{{ reference.author }} ({{ reference.year }})</span>
+    <span class="reference-venue muted">{{ reference.venue }}</span>
+    <span class="reference-meta muted">
+      <span class="reference-type">{{ reference.entry_type }}</span>
+      <span class="reference-key">{{ reference.cite_key }}</span>
+    </span>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="empty">No references yet. <a href="/add">Add the first one.</a></p>
+{% endif %}
 {% endblock %}

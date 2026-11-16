@@ -14,6 +14,8 @@ Nykyiset ominaisuudet:
   konferenssijulkaisu (`inproceedings`)
 * viiteavain (`\cite{avain}`) luodaan automaattisesti kirjoittajan ja vuoden
   perusteella, tai sen voi antaa itse
+* omien viitteiden listaus; viitettä klikkaamalla aukeaa sen BibTeX-muoto, jonka
+  saa leikepöydälle Copy-painikkeella
 
 ## Vaatimukset
 
@@ -102,10 +104,11 @@ src/db_helper.py        tietokannan luominen ja tyhjentäminen
 src/schema.sql          tietokannan taulut
 src/util.py             syötteiden validointi, viiteavaimen muodostus
 src/reference_types.py  tuetut viitetyypit ja niiden kentät
+src/bibtex.py           viitteen muotoilu BibTeX-muotoon
 src/repositories/       tietokantakyselyt
 src/entities/           tietoa kuvaavat luokat
 src/templates/          HTML-sivut
-src/static/main.css     tyylit
+src/static/             tyylit ja selaimessa ajettavat skriptit
 src/tests/              yksikkötestit (pytest)
 src/story_tests/        selaintestit (Robot Framework)
 ```

@@ -3,6 +3,7 @@ from functools import wraps
 
 from flask import abort, flash, jsonify, redirect, render_template, request, session
 
+import bibtex
 import reference_types
 import util
 from config import app, test_env
@@ -29,6 +30,18 @@ def check_csrf():
     token = request.form.get("csrf_token")
     if not token or token != session.get("csrf_token"):
         abort(403)
+
+
+def get_back_url(back):
+    """
+    Address of the list the user came from, including the search.
+    Only addresses of the list page are accepted.
+    """
+    if back.endswith("?"):
+        back = back[:-1]
+    if back == "/references" or back.startswith("/references?"):
+        return back
+    return "/references"
 
 
 def start_session(user):
@@ -138,7 +151,24 @@ def add_reference():
 @app.route("/references")
 @login_required
 def list_references():
-    return render_template("references.html")
+    references = reference_repository.get_references(session["user_id"])
+    return render_template("references.html", references=references)
+
+
+@app.route("/references/<int:reference_id>")
+@login_required
+def show_reference(reference_id):
+    # other users' references look the same as missing ones
+    reference = reference_repository.get_reference(session["user_id"], reference_id)
+    if not reference:
+        abort(404)
+
+    return render_template(
+        "show_reference.html",
+        reference=reference,
+        bibtex=bibtex.to_bibtex(reference),
+        back=get_back_url(request.args.get("back", "")),
+    )
 
 
 # route for tests only

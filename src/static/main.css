@@ -205,6 +205,91 @@ input[type="submit"]:hover,
   color: var(--muted);
 }
 
+.empty a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* reference list */
+
+.reference-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1rem var(--edge) 5rem var(--edge);
+  box-sizing: content-box;
+}
+
+.reference-count {
+  margin: 0 0 0.5rem 0;
+}
+
+.reference-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.15rem 2rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--line);
+}
+
+.reference-card:hover,
+.reference-card:focus-visible {
+  border-color: var(--text);
+  text-decoration: none;
+  outline: none;
+}
+
+.reference-card .reference-title {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.reference-card .reference-authors,
+.reference-card .reference-venue {
+  grid-column: 1;
+  overflow-wrap: anywhere;
+}
+
+.reference-card .reference-meta {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.reference-card .reference-meta span {
+  display: block;
+}
+
+/* single reference as BibTeX */
+
+.bibtex-view {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1rem var(--edge) 5rem var(--edge);
+  box-sizing: content-box;
+}
+
+.bibtex-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.bibtex {
+  margin: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.87rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* narrow pages: login, register, add reference */
 
 .narrow {
@@ -221,5 +306,20 @@ input[type="submit"]:hover,
 @media (max-width: 700px) {
   :root {
     --edge: 1.25rem;
+  }
+
+  .reference-card {
+    grid-template-columns: 1fr;
+  }
+
+  .reference-card .reference-meta {
+    grid-column: 1;
+    grid-row: auto;
+    text-align: left;
+  }
+
+  .reference-card .reference-meta span {
+    display: inline;
+    margin-right: 0.75rem;
   }
 }

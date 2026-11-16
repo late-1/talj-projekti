@@ -79,12 +79,33 @@ def validate_reference(entry_type, form):
                 f"{field_name(name)} can be at most {field_max_length(name)} characters long"
             )
 
+        if not has_balanced_braces(value):
+            raise UserInputError(
+                f"{field_name(name)} has curly braces {{ }} that do not match"
+            )
+
         fields[name] = value
 
     if not YEAR_PATTERN.fullmatch(fields["year"]):
         raise UserInputError("Year must be a four-digit number")
 
     return fields
+
+
+def has_balanced_braces(value):
+    """
+    Checks that every { has a matching }. Unmatched braces would break the
+    BibTeX entry. Braces escaped with a backslash are not counted.
+    """
+    depth = 0
+    for character in re.sub(r"\\.", "", value):
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth < 0:
+                return False
+    return depth == 0
 
 
 def validate_cite_key(cite_key):

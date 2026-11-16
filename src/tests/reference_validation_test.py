@@ -9,6 +9,7 @@ from util import (
     cite_key_base,
     cite_key_candidates,
     first_author_last_name,
+    has_balanced_braces,
     validate_cite_key,
     validate_reference,
 )
@@ -114,6 +115,22 @@ def test_field_lengths_are_limited():
     validate_reference("article", dict(ARTICLE, volume="1" * 200))
     with pytest.raises(UserInputError, match="Volume can be at most 200"):
         validate_reference("article", dict(ARTICLE, volume="1" * 201))
+
+
+@pytest.mark.parametrize("title", [
+    "The {UNIX} System", r"M{\"a}kel{\"a}", "{{Nested} braces}",
+    r"Sets \{ and \}", r"Open \{ only",
+])
+def test_matching_braces_are_accepted(title):
+    assert has_balanced_braces(title)
+    validate_reference("article", dict(ARTICLE, title=title))
+
+
+@pytest.mark.parametrize("title", ["The {UNIX System", "The UNIX} System", "}{", "{{a}"])
+def test_unmatched_braces_are_rejected(title):
+    assert not has_balanced_braces(title)
+    with pytest.raises(UserInputError, match="Title has curly braces"):
+        validate_reference("article", dict(ARTICLE, title=title))
 
 
 # validate_cite_key
