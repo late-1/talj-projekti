@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/late-1/talj-projekti/actions/workflows/ci.yaml/badge.svg)](https://github.com/late-1/talj-projekti/actions/workflows/ci.yaml)
 
+[OKD](https://route-ohjelmistotuotanto-lahiopetus-2026-22.ext.okd-cs-test-0.k8s.cs.helsinki.fi/)
+
 Web-sovellus lähdeviitteiden hallintaan ja niiden viemiseen BibTeX-muodossa
 LaTeX-dokumentteihin. Toteutettu Flaskilla ja SQLitellä.
 
