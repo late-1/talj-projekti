@@ -1,0 +1,507 @@
+# Arkkitehtuurikuvaus
+
+Tämä dokumentti kuvaa, miten sovellus toimii, miten se on toteutettu ja miksi.
+Käynnistys- ja testausohjeet ovat repositorion juuren `README.md`:ssä.
+
+## 1. Yleiskuva
+
+Kyseessä on Flask-sovellus, jolla käyttäjä tallentaa lähdeviitteitä lomakkeella,
+selaa omia viitteitään ja saa ne BibTeX-muodossa LaTeX-dokumenttia varten.
+Jokaisella käyttäjällä on oma tunnus, ja käyttäjä näkee vain omat viitteensä.
+
+## 2. Tekniikka
+
+| Osa | Valinta | Peruste |
+| --- | --- | --- |
+| Web-kehys | Flask 3 | Kurssin speksi, boilerplate |
+| Tietokanta | SQLite | Kurssin speksi, ei vaadi palvelinta |
+| Tietokantakerros | Flask-SQLAlchemy, SQL käsin `text()`-kyselyinä | Boilerplaten tapa, ei ORM-malleja |
+| Riippuvuudet | uv (`pyproject.toml`, `uv.lock`) | Boilerplate; uv asentaa myös oikean Python-version |
+| Yksikkötestit | pytest + Flaskin testiasiakas | Boilerplate |
+| Selaintestit | Robot Framework + Browser-kirjasto (Playwright) | Boilerplate, kurssin käytäntö |
+| Koodin tyyli | pylint | Asetukset `pyproject.toml`:ssä |
+| CI | GitHub Actions | Testit ja pylint ajetaan jokaisella pushilla |
+| Julkaisu | Docker-kuva (GitHub Container Registry) ja OKD-klusteri (Kustomize) | Kurssin käytäntö, boilerplate |
+| Salasanat | `werkzeug.security` (hajautus) | Tulee Flaskin mukana |
+
+Python-versio: vähintään 3.12 (`pyproject.toml`).
+
+## 3. Hakemistorakenne
+
+```
+run.sh                       sovelluksen käynnistys yhdellä komennolla
+test.sh                      testien ajo yhdellä komennolla
+pyproject.toml, uv.lock      riippuvuudet ja pylintin asetukset
+.githooks/pre-commit         ennen committia ajettavat tarkistukset
+.github/workflows/ci.yaml    GitHub Actions: testit ja pylint
+.github/workflows/docker.yaml  GitHub Actions: Docker-kuvan julkaisu
+Dockerfile, .dockerignore    sovelluksen Docker-kuva
+kustomization.yaml           OKD-julkaisun asetukset (projekti, kuva, osoite)
+manifests/                   OKD-resurssit (ks. luku 11)
+src/
+  index.py                   käynnistää palvelimen
+  app.py                     reitit ja istunnon käsittely
+  config.py                  Flask-sovellus, asetukset, tietokantayhteys
+  db_helper.py               taulujen luonti, tyhjennys ja nollaus
+  schema.sql                 tietokannan taulut
+  util.py                    syötteiden validointi, viiteavaimen muodostus,
+                             UserInputError
+  reference_types.py         viitetyypit ja niiden kentät (yksi totuuden lähde)
+  bibtex.py                  viitteen muotoilu BibTeX-muotoon
+  entities/
+    user.py                  User-luokka
+    reference.py             Reference-luokka
+  repositories/
+    user_repository.py       käyttäjiin liittyvät tietokantakyselyt
+    reference_repository.py  viitteisiin liittyvät tietokantakyselyt
+  templates/                 Jinja-sivupohjat
+    layout.html              yhteinen runko, yläpalkki, ilmoitukset
+    login.html, register.html
+    add_reference.html       viitteen lisäyslomake
+    references.html          viitelistaus
+    show_reference.html      bibtex-sivu
+  static/main.css            tyylit
+  static/add_reference.js    lomakkeen kenttien vaihto viitetyypin mukaan
+  static/copy.js             Copy-painike (leikepöytä)
+  tests/                     pytest-testit
+  story_tests/               Robot Framework -testit
+  instance/                  SQLite-tiedostot (ei versionhallinnassa)
+```
+
+Kerrokset: `app.py` (HTTP, istunto, sivupohjat) → `util.py` (validointi) ja
+`repositories/` (SQL) → `config.db`. Reitit eivät sisällä SQL:ää, eivätkä
+repositoriot tiedä HTTP:stä mitään. Virheellinen käyttäjän syöte ilmaistaan
+poikkeuksella `UserInputError`, jonka viesti näytetään käyttäjälle.
+
+## 4. Asetukset
+
+Asetukset luetaan ympäristömuuttujista; `config.py` lataa lisäksi projektin juuren
+`.env`-tiedoston (ympäristömuuttuja voittaa `.env`:n arvon).
+
+| Muuttuja | Merkitys | Oletus |
+| --- | --- | --- |
+| `DATABASE_URL` | SQLAlchemy-osoite, esim. `sqlite:///database.db` | pakollinen |
+| `SECRET_KEY` | Flaskin istuntojen allekirjoitusavain | pakollinen |
+| `TEST_ENV` | `true` = testitila: `/reset_db`-reitti käytössä, debug pois | ei asetettu |
+| `HOST` | kuunneltava osoite | `127.0.0.1` |
+| `PORT` | portti | `5001` |
+
+* `run.sh` luo `.env`-tiedoston satunnaisella `SECRET_KEY`:llä, jos sitä ei ole.
+* Suhteellinen SQLite-polku sijoittuu hakemistoon `src/instance/` (Flask-SQLAlchemyn
+  käytäntö), eli kehitystietokanta on `src/instance/database.db`.
+* Palvelin kuuntelee oletuksena vain omaa konetta. Boilerplatessa osoite on
+  `0.0.0.0`, mutta Flaskin debuggeria ei pidä avata lähiverkkoon. Klusterilla
+  kontti kuuntelee kaikkia osoitteita (`HOST=0.0.0.0` tiedostossa
+  `manifests/configmap.yaml`), jotta OKD:n Service tavoittaa sen.
+* Flaskin debug-tila on päällä aina, kun `TEST_ENV` ei ole `true`
+  (`src/index.py`), eli myös klusterilla.
+* Klusterilla asetukset tulevat ympäristömuuttujina: `DATABASE_URL`,
+  `TEST_ENV` ja `HOST` tiedostosta `manifests/configmap.yaml` ja `SECRET_KEY`
+  tiedostosta `secret.env`, joka ei ole versionhallinnassa (ks. luku 11).
+
+## 5. Tietokanta
+
+`src/schema.sql` (lyhennettynä):
+
+```sql
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL
+);
+
+CREATE TABLE bib_references (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users,
+  entry_type TEXT NOT NULL,          -- article | book | inproceedings
+  cite_key TEXT NOT NULL,
+  author TEXT NOT NULL, title TEXT NOT NULL, year TEXT NOT NULL,
+  journal TEXT, booktitle TEXT, publisher TEXT, volume TEXT, number TEXT,
+  pages TEXT, address TEXT, edition TEXT, isbn TEXT, doi TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id, cite_key)
+);
+```
+
+* Taulun nimi on `bib_references`, koska `references` on SQL:n varattu sana.
+* Jokaisella BibTeX-kentällä on oma sarakkeensa (ei erillistä avain–arvo-taulua).
+  Kenttiä on vähän, ja näin myöhemmin toteutettava kenttäkohtainen haku on
+  suoraviivainen. Kentät, jotka eivät kuulu viitteen tyyppiin tai ovat tyhjiä,
+  ovat `NULL`.
+* Kaikki kentät ovat tekstiä, myös `year`, `volume` ja `number`, koska BibTeX
+  käsittelee niitä tekstinä (esim. `number = {3-4}`).
+* `UNIQUE (user_id, cite_key)` takaa, että avain on uniikki käyttäjäkohtaisesti.
+* SQLite tarkistaa viiteavaimet (foreign key) vain pyydettäessä, joten
+  `config.py` asettaa jokaiselle yhteydelle `PRAGMA foreign_keys = ON`.
+* Lauseet ovat muotoa `CREATE ... IF NOT EXISTS`, jotta skeeman voi ajaa
+  olemassa olevaan tietokantaan.
+
+`db_helper.py`:
+
+| Funktio / komento | Toiminta |
+| --- | --- |
+| `setup_db()` / `uv run python src/db_helper.py` | Pudottaa taulut ja luo ne uudelleen (tyhjä tietokanta). |
+| `setup_db_if_missing()` / `... db_helper.py --if-missing` | Luo puuttuvat taulut ja säilyttää olemassa olevan datan. `run.sh` käyttää tätä, joten data säilyy käynnistysten välillä ja uudet taulut ilmestyvät vanhaan tietokantaan itsestään. |
+| `reset_db()` | Poistaa rivit kaikista tauluista. Robot-testit kutsuvat tätä reitin `/reset_db` kautta. |
+
+Taulut pudotetaan ja tyhjennetään käänteisessä luontijärjestyksessä, jotta
+viiteavaimet eivät estä sitä.
+
+Varsinaisia migraatioita ei ole: uusi taulu syntyy automaattisesti, mutta jos
+olemassa olevan taulun sarakkeet muuttuvat, tietokanta on luotava uudelleen
+komennolla `uv run python src/db_helper.py` (data häviää).
+
+Klusterilla `run.sh`:ää ei ajeta, joten tauluja ei luoda käynnistyksessä:
+tietokanta alustetaan käsin, ks. luku 11.
+
+## 6. Reitit
+
+| Reitti | Metodi | Kirjautuminen | Toiminta |
+| --- | --- | --- | --- |
+| `/` | GET | – | Ohjaa: kirjautunut → `/references`, muuten → `/login` |
+| `/login` | GET | ei | Kirjautumislomake (kirjautunut ohjataan `/`) |
+| `/login` | POST | ei | Tarkistaa tunnukset, aloittaa istunnon, ohjaa `/` |
+| `/register` | GET | ei | Rekisteröintilomake (kirjautunut ohjataan `/`) |
+| `/register` | POST | ei | Luo käyttäjän, kirjaa sisään, ohjaa `/` |
+| `/logout` | GET | – | Tyhjentää istunnon, ohjaa `/login` |
+| `/add` | GET | vaaditaan | Viitteen lisäyslomake; `?type=book` valitsee tyypin valmiiksi |
+| `/add` | POST | vaaditaan + CSRF | Validoi ja tallentaa viitteen, ohjaa `/add?type=<tyyppi>` |
+| `/references` | GET | vaaditaan | Omien viitteiden listaus, uusin ensin |
+| `/references/<id>` | GET | vaaditaan | Bibtex-sivu; `?back=<osoite>` kertoo, mihin back-painike palaa. Toisen käyttäjän tai olematon viite → 404 |
+| `/reset_db` | GET | – | Vain testitilassa: tyhjentää tietokannan ja istunnon |
+
+Epäonnistunut kirjautuminen tai rekisteröinti näyttää saman lomakkeen uudelleen
+virheilmoituksen kanssa, ja käyttäjätunnus säilyy kentässä.
+
+## 7. Käyttäjät ja istunto
+
+* **Käyttäjätunnus:** 3–30 merkkiä, sallitut merkit kirjaimet a–z, numerot ja
+  `_ - .`; uniikki (tietokannan `UNIQUE`-rajoite, isot ja pienet kirjaimet
+  erotellaan). Alun ja lopun välilyönnit poistetaan.
+* **Salasana:** 8–100 merkkiä, syötetään rekisteröityessä kahdesti. Tallennetaan
+  vain hajautettuna.
+* Rajat ovat vakioina `util.py`:ssä, ja lomakkeiden `minlength`/`maxlength` sekä
+  ohjetekstit luetaan samoista vakioista. Validointi tehdään aina palvelimella;
+  selaimen tarkistukset ovat vain mukavuutta.
+* **Istunto:** Flaskin allekirjoitettu eväste, jossa `user_id`, `username` ja
+  `csrf_token`. Istunto tyhjennetään ennen uuden aloittamista ja uloskirjautuessa.
+* **Pääsynhallinta:** `@login_required` ohjaa kirjautumattoman kirjautumissivulle
+  (ei 403-virhettä), koska kirjautumattoman on tarkoitus nähdä vain kirjautumissivu.
+* `@login_required` tarkistaa myös, että istunnon käyttäjä on yhä tietokannassa;
+  jos ei ole (esim. tietokanta on luotu uudelleen), istunto tyhjennetään.
+* **CSRF:** jokainen istunto saa satunnaisen tunnisteen, joka on piilokenttänä
+  kirjautuneen käyttäjän POST-lomakkeissa (toistaiseksi lisäyslomake) ja
+  tarkistetaan funktiolla `check_csrf()` (virheellinen tai puuttuva → 403).
+  Kirjautumis- ja rekisteröintilomakkeissa tunnistetta ei ole (istuntoa ei
+  vielä ole).
+* **Uloskirjautuminen** on tavallinen linkki (`GET /logout`). Haittana on, että
+  ulkopuolinen sivu voi kirjata käyttäjän ulos linkillä; tämä on hyväksytty
+  yksinkertaisuuden vuoksi.
+* Kirjautumisvirheen ilmoitus on sama väärälle tunnukselle ja väärälle salasanalle,
+  jotta tunnusten olemassaoloa ei voi päätellä.
+
+## 8. Viitteet
+
+### Tyypit ja kentät
+
+Määritelty tiedostossa `src/reference_types.py`, josta lomake, validointi ja
+tietokantakyselyt lukevat ne. Uuden tyypin tai kentän lisääminen: lisää se
+sinne (ja uusi kenttä sarakkeeksi `schema.sql`:ään).
+
+| Tyyppi | Pakolliset | Valinnaiset |
+| --- | --- | --- |
+| `article` | author, title, journal, year | volume, number, pages, doi |
+| `book` | author, title, publisher, year | address, edition, isbn |
+| `inproceedings` | author, title, booktitle, year | pages, publisher, doi |
+
+### Validointi (`util.validate_reference`, `util.validate_cite_key`)
+
+* Tyypin on oltava jokin tuetuista.
+* Pakolliset kentät eivät saa olla tyhjiä.
+* Arvoista poistetaan ylimääräiset välilyönnit ja rivinvaihdot.
+* `year` on nelinumeroinen luku.
+* Enimmäispituus: author, title, journal ja booktitle 1000 merkkiä, muut 200.
+* Kentät, jotka eivät kuulu valittuun tyyppiin, jätetään tallentamatta, vaikka
+  ne lähetettäisiin lomakkeessa.
+* Kirjoittajat syötetään BibTeX-muodossa: useampi kirjoittaja erotetaan sanalla
+  `and`, nimi joko `Sukunimi, Etunimi` tai `Etunimi Sukunimi`. Muotoa ei
+  pakoteta; lomakkeessa on ohjeteksti.
+* Aaltosulkeiden `{ }` on täsmättävä (ks. BibTeX-muotoilu).
+* Itse annettu avain: enintään 50 merkkiä, sallitut merkit a–z, A–Z, 0–9 ja
+  `_ - : . + /` (ei välilyöntejä, pilkkuja tai aaltosulkeita, jotka rikkoisivat
+  BibTeXin).
+
+### Viiteavaimen generointi
+
+Kun key-kenttä jätetään tyhjäksi:
+
+1. Otetaan ensimmäinen kirjoittaja (teksti ennen ensimmäistä `and`-sanaa).
+2. Sukunimi on pilkkua edeltävä osa (`Martin, Robert`) tai pilkuttomassa
+   muodossa viimeinen sana (`Robert Martin`).
+3. Sukunimi muutetaan pieniksi kirjaimiksi, aksentit poistetaan (`Mäkelä` →
+   `makela`) ja muut kuin a–z ja 0–9 pudotetaan (`van der Berg` → `vanderberg`).
+   Jos mitään ei jää jäljelle, käytetään sanaa `ref`.
+4. Perään lisätään vuosi: `martin2008`.
+5. Jos avain on käyttäjällä jo käytössä, kokeillaan `martin2008a`, `…b`, …, `…z`,
+   `…aa`, … kunnes löytyy vapaa.
+
+Itse annettu, jo käytössä oleva avain hylätään virheilmoituksella (ei muuteta
+automaattisesti). Samanaikaisten lisäysten varalta uniikkius varmistetaan
+viime kädessä tietokannan rajoitteella.
+
+### Lisäyslomake
+
+* Tyyppi valitaan lomakkeen yläreunasta (radiopainikkeet, jotka näyttävät
+  tekstilinkeiltä; valittu on alleviivattu kuten yläpalkissa).
+* Kaikki kentät ovat sivulla; `add_reference.js` näyttää valitun tyypin kentät,
+  piilottaa muut ja merkitsee ne `disabled`-tilaan (jolloin selain ei lähetä
+  eikä vaadi niitä) sekä päivittää `required`-määreet ja "(optional)"-merkinnät.
+  Palvelin renderöi saman alkutilan, joten sivu on oikein jo ennen skriptin
+  ajoa, ja tyyppiä vaihdettaessa muihin kenttiin kirjoitettu teksti säilyy.
+* Onnistuneen lisäyksen jälkeen näytetään ilmoitus `Reference added with the key
+  <avain>` ja tyhjä lomake samalla tyypillä (helpottaa usean viitteen lisäämistä).
+* Virhetilanteessa lomake näytetään uudelleen virheilmoituksen ja syötettyjen
+  arvojen kanssa.
+
+### Listaus (`/references`)
+
+* Käyttäjän omat viitteet uusin ensin, kukin ohutreunaisessa laatikossa, joka on
+  kokonaan linkki bibtex-sivulle. Yläpuolella viitteiden määrä.
+* Laatikossa näytetään vain olennaisin: otsikko, kirjoittajat ja vuosi,
+  julkaisupaikka (`Reference.venue`: journal, booktitle tai publisher) sekä
+  oikeassa reunassa himmeämmällä tyyppi ja avain. Muut kentät (volume, pages,
+  doi, …) näkyvät vain bibtex-sivulla.
+* Tyhjässä listassa on linkki lisäyssivulle.
+* Hakua ei vielä ole; kaikki käyttäjän viitteet näytetään kerralla.
+
+### Bibtex-sivu (`/references/<id>`)
+
+* BibTeX on `<pre>`-laatikossa sivun keskellä. Laatikon yläpuolella samalla
+  rivillä on vasemmalla `back` ja oikealla `Copy`.
+* `Copy` kopioi tekstin leikepöydälle (`copy.js`): ensisijaisesti
+  `navigator.clipboard`, ja jos se ei ole käytettävissä (esim. sivu avattu
+  muulla kuin localhost-osoitteella ilman HTTPS:ää), varamenetelmänä
+  piilotettu tekstikenttä ja `document.execCommand("copy")`. Painikkeen teksti
+  vaihtuu hetkeksi muotoon `Copied`.
+* `back`: listauksen linkit vievät mukanaan nykyisen osoitteensa
+  (`?back=/references...`), joten myöhemmin lisättävä haku säilyy paluussa.
+  `get_back_url()` hyväksyy vain listaussivun osoitteet, jottei parametrilla voi
+  ohjata muualle (open redirect).
+* Viite haetaan aina ehdolla `user_id = kirjautunut käyttäjä`. Toisen käyttäjän
+  viite antaa saman 404-vastauksen kuin olematon, eikä paljasta viitteen
+  olemassaoloa.
+* Yläpalkissa `view / search` on alleviivattu myös bibtex-sivulla.
+
+### BibTeX-muotoilu (`bibtex.to_bibtex`)
+
+```
+@article{dijkstra1968,
+  author  = {Dijkstra, Edsger W.},
+  title   = {Go To Statement Considered Harmful},
+  journal = {Communications of the ACM},
+  year    = {1968},
+  pages   = {147--148}
+}
+```
+
+* Kentät samassa järjestyksessä kuin lomakkeessa, vain täytetyt kentät,
+  `=`-merkit tasattuna, arvot aaltosulkeissa.
+* Sivuvälin yksittäinen viiva numeroiden välissä muutetaan BibTeXin
+  kaksoisviivaksi (`12-34` → `12--34`).
+* Merkit `&`, `%` ja `#` escapoidaan (`\&`), ellei käyttäjä ole jo tehnyt sitä.
+  Kentät `doi` ja `isbn` kirjoitetaan sellaisinaan.
+* Muuhun sisältöön ei kosketa: ääkköset säilyvät UTF-8:na (toimii nykyisillä
+  LaTeX-asennuksilla), ja käyttäjä voi kirjoittaa itse LaTeX-merkintää, esim.
+  `{UNIX}` isojen kirjainten suojaamiseksi tai `$O(n)$`.
+* Koska arvot kääritään aaltosulkeisiin, pariton `{` tai `}` rikkoisi tietueen.
+  Siksi lisäyksen validointi hylkää kentät, joiden aaltosulkeet eivät täsmää.
+
+## 9. Käyttöliittymä
+
+* **Yläpalkki** (vain kirjautuneelle, kaikilla sivuilla): vasemmalla `add` ja
+  `view / search`, keskellä sovelluksen nimi, oikealla `log out`. Sivu, jolla
+  ollaan, on alleviivattu (luokka `active`, päätellään `request.endpoint`ista).
+* **Kirjautumis- ja rekisteröintisivu:** ei yläpalkkia, vain sovelluksen nimi
+  lomakkeen yläpuolella. Kirjautumissivulla `register`-painike vie
+  rekisteröintisivulle, jolta pääsee takaisin painikkeella `back to log in`.
+* Käyttöliittymän tekstit ovat englanniksi ja pääosin pienellä kirjoitettuja
+  (poikkeuksena bibtex-sivun `Copy`-painike).
+* Virheilmoitukset ovat punaisia; onnistumisilmoitukset
+  (`.flash.notice`) ovat tavallisen tekstin värisiä.
+* Listaus ja bibtex-sivun tekstilaatikko käyttävät samaa 46 rem:n keskitettyä
+  palstaa.
+
+## 10. Testaus ja CI
+
+### pytest (`src/tests/`)
+
+| Tiedosto | Kattaa |
+| --- | --- |
+| `validation_test.py` | Käyttäjätunnuksen ja salasanan säännöt |
+| `user_repository_test.py` | Käyttäjän luonti, hajautus, uniikkius, kirjautumisen tarkistus |
+| `db_helper_test.py` | Taulujen luonti, nollaus ja tyhjennys |
+| `login_test.py` | Reitit Flaskin testiasiakkaalla: ohjaukset, rekisteröinti, kirjautuminen, uloskirjautuminen, yläpalkki, `/reset_db` |
+| `reference_validation_test.py` | Tyyppimäärittelyt, viitteen ja avaimen validointi, aaltosulkeiden täsmäys, sukunimen poiminta, avaimen generointi |
+| `reference_repository_test.py` | Viitteen tallennus ja luku, avaimen uniikkius ja generointi, käyttäjäkohtaisuus, erikoismerkit, viiteavainrajoite |
+| `bibtex_test.py` | BibTeX-muotoilu kaikille tyypeille, erikoismerkit, sivuvälit |
+| `references_test.py` | Listaus (sisältö, järjestys, vain omat viitteet, escapointi), bibtex-sivu (sisältö, painikkeet, 404 toisen käyttäjän viitteelle), back-osoitteen rajaus |
+| `add_reference_test.py` | Lisäysreitti: lomake, kaikki kolme tyyppiä, virhetilanteet, arvojen säilyminen ja escapointi, kirjautumis- ja CSRF-vaatimus |
+
+`conftest.py` asettaa `DATABASE_URL`:n väliaikaistiedostoon ennen sovelluksen
+importtaamista, joten testit eivät koske kehitystietokantaan. Jokainen testi
+alkaa tyhjästä tietokannasta (`setup_db()` automaattisessa fixturessa).
+Fixture `actions` tarjoaa apumetodit `register`, `login`, `logout`, `session` ja
+`add_reference` (lähettää oletuksena kelvollisen artikkelin CSRF-tunnisteineen).
+
+### Robot Framework (`src/story_tests/`)
+
+`login.robot` testaa samat käyttäjätarinat oikealla selaimella (Chromium):
+ohjaus kirjautumissivulle, rekisteröinti ja sen virhetilanteet, kirjautuminen,
+uloskirjautuminen sekä yläpalkin linkit ja alleviivaus. Yhteiset avainsanat ovat
+`resource.robot`issa. Tietokanta tyhjennetään ennen jokaista testiä (`/reset_db`).
+
+`add_reference.robot` testaa lisäyslomakkeen: kenttien vaihtuminen tyypin
+mukaan, "(optional)"-merkinnät, kaikkien kolmen tyypin lisääminen, oma ja
+generoitu avain, käytössä oleva avain, selaimen pakollisuus- ja
+vuosilukutarkistukset sekä se, etteivät piilotetut kentät estä lähetystä.
+
+`references.robot` testaa listauksen ja bibtex-sivun: tyhjä lista, järjestys,
+laatikon reunus, laatikon klikkaus, Copy-painike (leikepöydän sisältö luetaan
+selaimesta ja verrataan sivun BibTeXiin; selainkontekstille annetaan
+leikepöytäoikeudet), back- ja Copy-painikkeen sijainti samalla rivillä,
+back-painike ja se, ettei toisen käyttäjän viitettä näe.
+
+### Skriptit
+
+* `./test.sh` ajaa molemmat, `./test.sh unit` vain pytestin ja `./test.sh robot`
+  vain Robot-testit. Robot-testejä varten skripti asentaa testiselaimen, luo
+  tietokannan `robot_test.db`, käynnistää sovelluksen testitilassa taustalle,
+  odottaa että se vastaa, ajaa testit ja pysäyttää sovelluksen aina lopuksi
+  (myös virhetilanteessa). Jos portti on jo käytössä, skripti keskeytyy
+  selkeään virheilmoitukseen.
+* `./run.sh` asentaa riippuvuudet, luo tarvittaessa `.env`:n ja tietokannan ja
+  käynnistää sovelluksen.
+* Skriptit ovat bashia, käyttävät vain `uv`:tä ja `curl`ia ja toimivat macOS:llä
+  ja Linuxilla. Ne poistavat `VIRTUAL_ENV`-muuttujan, jotta toisen projektin
+  aktiivinen virtuaaliympäristö ei sotke uv:tä.
+
+### pylint ja Git-hook
+
+* `uv run pylint src` tarkistaa koodin tyylin. Asetukset ovat `pyproject.toml`:ssä:
+  rivin enimmäispituus 100 merkkiä, ja docstring-vaatimukset sekä pytestin
+  fixtureihin liittyvät huomautukset on poistettu käytöstä. Lyhyet toistuvat
+  koodilohkot (alle 8 riviä) sallitaan.
+* `.githooks/pre-commit` ajaa ennen jokaista committia `./test.sh unit` ja
+  pylintin; commit hyväksytään vain, jos molemmat menevät läpi. Robot-testejä ei
+  ajeta hookissa, koska ne ovat hitaita ja tarvitsevat vapaan portin. Hook
+  otetaan käyttöön kerran työkopiossa: `git config core.hooksPath .githooks`.
+
+### GitHub Actions
+
+`.github/workflows/ci.yaml` ajaa jokaisella pushilla (kaikki haarat) ja mainiin
+kohdistuvalla pull requestilla: `./test.sh unit`, selaimen asennus,
+`./test.sh robot` ja pylint. Epäonnistuessa Robot-raportti tallennetaan
+artefaktiksi.
+
+`.github/workflows/docker.yaml` käynnistyy, kun CI-ajo main-haarassa on
+valmis, ja vain jos se onnistui. Se rakentaa Docker-kuvan ja julkaisee sen
+osoitteeseen `ghcr.io/late-1/talj-projekti:latest` (ks. luku 11).
+
+Epäonnistunut ajo merkitsee commitin punaisella rastilla. GitHub ei voi perua jo
+pushattua committia; jos virheellisten muutosten pääsy mainiin halutaan estää
+kokonaan, repositorion asetuksista on lisättävä main-haaralle branch protection
+-sääntö (*Require status checks to pass* → `test`) ja tehtävä muutokset pull
+requestien kautta. Tätä ei voi asettaa koodista.
+
+## 11. Julkaisu (OKD)
+
+Sovellus julkaistaan kurssin OKD-klusterille boilerplaten ohjeen
+[DEPLOYMENT.md](https://github.com/ohjelmistotuotanto-hy/miniprojekti-boilerplate/blob/main/DEPLOYMENT.md)
+mukaisesti.
+
+### Docker-kuva
+
+`Dockerfile` perustuu kuvaan `python:3.12-slim`, asentaa riippuvuudet uv:llä
+ilman kehitysriippuvuuksia (`uv sync --no-dev`), kopioi hakemiston `src/` ja
+käynnistää sovelluksen komennolla `python src/index.py` porttiin 5001.
+`.dockerignore` pitää virtuaaliympäristön, `.env`:n, tietokannat ja
+testiraportit poissa kuvasta.
+
+### Klusterin resurssit
+
+`kustomization.yaml` kokoaa resurssit, asettaa OKD-projektin (`namespace`),
+Docker-kuvan osoitteen ja sovelluksen julkisen osoitteen sekä luo
+salaisuuden `secret` tiedostosta `secret.env`.
+
+| Tiedosto | Resurssi | Tehtävä |
+| --- | --- | --- |
+| `manifests/configmap.yaml` | ConfigMap `config` | Ympäristömuuttujat: `DATABASE_URL=sqlite:////app/data/database.db`, `TEST_ENV=false`, `HOST=0.0.0.0` |
+| `manifests/imagestream.yaml` | ImageStream `app` | Seuraa kuvaa `ghcr.io/late-1/talj-projekti:latest` ja tarkistaa ajoittain (noin vartin välein), onko siitä uusi versio |
+| `manifests/deployment.yaml` | Deployment `dep` | Yksi kontti; käynnistyy uudelleen, kun ImageStreamiin tulee uusi kuva. Ympäristö ConfigMapista ja salaisuudesta, pysyvä levy hakemistoon `/app/data`, muistiraja 256 Mi |
+| `manifests/service.yaml` | Service `svc` | Klusterin sisäinen osoite, portti 80 → kontin portti 5001 |
+| `manifests/route.yaml` | Route `route` | Julkinen HTTPS-osoite (`kustomization.yaml` asettaa osoitteen); HTTP ohjataan HTTPS:ään |
+| `manifests/volumeclaim.yaml` | PersistentVolumeClaim `claim` | 1 Gi:n pysyvä levy SQLite-tietokannalle |
+| `manifests/kustomizeconfig.yaml` | – | Kertoo Kustomizelle, mistä ImageStreamin kuvan osoite löytyy |
+
+### Päivittyminen
+
+1. Muutos pushataan main-haaraan, ja CI ajaa testit ja pylintin.
+2. Jos CI onnistuu, `docker.yaml` julkaisee uuden kuvan.
+3. ImageStream huomaa uuden kuvan, ja Deployment käynnistää sovelluksen
+   uudelleen. Heti päivittäminen: `oc import-image app:latest`.
+
+Muutokset tiedostoihin `kustomization.yaml`, `manifests/` ja `secret.env`
+eivät päivity pushaamalla, vaan ne viedään klusterille komennolla
+`oc apply -k .`. Kuvan on oltava GitHubissa julkinen, jotta klusteri voi
+hakea sen.
+
+### Tietokanta klusterilla
+
+Tietokanta on pysyvällä levyllä ja säilyy päivitysten ja uudelleenkäynnistysten
+yli, mutta tauluja ei luoda automaattisesti. Ne luodaan ensimmäisen
+julkaisun jälkeen ja aina, kun `src/schema.sql` on muuttunut ja uusi versio on
+käynnissä (`oc rollout status deploy/dep`):
+
+```sh
+oc exec deploy/dep -- python src/db_helper.py
+```
+
+Komento pudottaa taulut ja luo ne uudelleen, joten **kaikki klusterin data
+häviää**.
+
+## 12. Päätökset
+
+Keskeiset valinnat koottuna; yksityiskohdat ovat viitatuissa luvuissa.
+
+**Käyttäjät**
+
+* Rekisteröinti on omalla sivullaan eikä kirjautumissivun sisällä, ja
+  onnistunut rekisteröinti kirjaa suoraan sisään.
+* Kirjautumisen jälkeen avautuu viitelistaus.
+* Uloskirjautuminen on tavallinen linkki ilman CSRF-suojausta
+  (yksinkertaisuus, ks. luku 7).
+
+**Viitteet**
+
+* Tuetut tyypit ovat `article`, `book` ja `inproceedings`; lomakkeen kentät
+  vaihtuvat valitun tyypin mukaan. Tyypit ja kentät on määritelty yhdessä
+  paikassa (`reference_types.py`), joten uuden tyypin lisääminen on pieni muutos.
+* Viiteavain on automaattinen mutta muokattavissa: tyhjäksi jätettynä se
+  generoidaan muodossa ensimmäisen kirjoittajan sukunimi + vuosi
+  (`martin2008`), ja törmäyksessä perään lisätään kirjain (`martin2008a`,
+  `martin2008b`, …). Avain on uniikki käyttäjäkohtaisesti.
+* Kirjoittajat ovat vapaata tekstiä BibTeX-muodossa (`and`-sanalla eroteltuna)
+  eivätkä omia tietueitaan; muotoa ei pakoteta.
+* Vuosi on nelinumeroinen ja tallennetaan tekstinä, kuten muutkin kentät.
+* Jokainen BibTeX-kenttä on oma sarakkeensa taulussa `bib_references` (ei
+  avain–arvo-taulua), mikä pitää kyselyt yksinkertaisina.
+* Lisäyksen jälkeen palataan tyhjään lisäyslomakkeeseen sama tyyppi valittuna,
+  mikä helpottaa usean viitteen lisäämistä peräkkäin.
+* BibTeX-muotoilu escapoi vain merkit `&`, `%` ja `#`; muu sisältö jätetään
+  ennalleen, jotta käyttäjä voi kirjoittaa itse LaTeX-merkintää.
+
+**Listaus**
+
+* Listauksen laatikossa näytetään vain olennaisin (otsikko, kirjoittajat,
+  vuosi, julkaisupaikka, tyyppi ja avain).
+* Listauksessa ei ole sivutusta; kaikki käyttäjän viitteet näytetään kerralla.

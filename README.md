@@ -5,6 +5,9 @@
 Web-sovellus lähdeviitteiden hallintaan ja niiden viemiseen BibTeX-muodossa
 LaTeX-dokumentteihin. Toteutettu Flaskilla ja SQLitellä.
 
+Sovelluksen rakenne ja tekniset ratkaisut on kuvattu
+[arkkitehtuurikuvauksessa](docs/arkkitehtuurikuvaus/README.md).
+
 Lukekaa [pelisäännöt](pelisaannot.md).
 
 Nykyiset ominaisuudet:
