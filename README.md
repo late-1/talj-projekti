@@ -126,12 +126,8 @@ src/static/             tyylit ja selaimessa ajettavat skriptit
 src/tests/              yksikkötestit (pytest)
 src/story_tests/        selaintestit (Robot Framework)
 ```
-
 ## Projektin linkit
 
-...
-
-[Pelisäännöt](https://github.com/late-1/talj-projekti/pelisaannot.md)
-[OKD](https://route-ohjelmistotuotanto-lahiopetus-2026-22.ext.okd-cs-test-0.k8s.cs.helsinki.fi/)
-[Backlog]https://github.com/users/late-1/projects/2
-...
+[Pelisäännöt](https://github.com/late-1/talj-projekti/blob/main/pelisaannot.md)  
+[OKD](https://route-ohjelmistotuotanto-lahiopetus-2026-22.ext.okd-cs-test-0.k8s.cs.helsinki.fi/)  
+[Backlog](https://github.com/users/late-1/projects/2)
