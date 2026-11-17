@@ -3,3 +3,5 @@ Haaroja ei käytetä. Jokainen kloonaa repon paikalliseksi repoksi. Ennen mitä�
 Haarojen käytöstä keskustellaan uudelleen ensimmäisen sprintin jälkeen.
 
 Uuteen tai muutettuun koodiin tehdään samalla testit tai sovitaan, kuka tekee testin.
+
+README.md sisältää Definition of Done. Ryhmä päättää yhteisesti, täyttääkö käyttäjätarina vaatimukset. Vaatimukset täyttävään käyttäjätarinaan merkitään kommentteihin ryhmän päättämä DoD täyttyminen.

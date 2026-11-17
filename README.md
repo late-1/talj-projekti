@@ -22,6 +22,15 @@ Nykyiset ominaisuudet:
 * omien viitteiden listaus; viitettä klikkaamalla aukeaa sen BibTeX-muoto, jonka
   saa leikepöydälle Copy-painikkeella
 
+## Definition of Done
+
+Käyttäjätarina on valmis, jos
+1) Hyväksymiskriteerit määritelty ja läpäisty, hyväksymiskriteerit määritellään Robot Framework- testeillä (jo 1. sprintissä)
+2) Toiminnallisuuden sisältävä koodin ja siihen liittyvät testit (3 ja 4) on katselmoinut ryhmän jäsenistä joku muu kuin koodin luoja, katselmointi merkitään tarinan kommentteihin
+3) Koodille on luotu yksikkötestit ja läpäisty (pytest)
+4) Koodi noudattaa sovittua koodityyliä ja läpäisee kaikki testit täysillä pisteillä (pylint)
+5) Koodi on työnnetty päärepositorioon ja CI (GitHub Actions) on vihreällä
+
 ## Vaatimukset
 
 * macOS tai Linux
@@ -117,7 +126,12 @@ src/static/             tyylit ja selaimessa ajettavat skriptit
 src/tests/              yksikkötestit (pytest)
 src/story_tests/        selaintestit (Robot Framework)
 ```
+
 ## Projektin linkit
 
 ...
+
 [Pelisäännöt](https://github.com/late-1/talj-projekti/pelisaannot.md)
+[OKD](https://route-ohjelmistotuotanto-lahiopetus-2026-22.ext.okd-cs-test-0.k8s.cs.helsinki.fi/)
+[Backlog]https://github.com/users/late-1/projects/2
+...
