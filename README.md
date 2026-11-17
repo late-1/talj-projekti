@@ -115,3 +115,7 @@ src/static/             tyylit ja selaimessa ajettavat skriptit
 src/tests/              yksikkötestit (pytest)
 src/story_tests/        selaintestit (Robot Framework)
 ```
+## Projektin linkit
+
+...
+[Pelisäännöt](https://github.com/late-1/talj-projekti/pelisaannot.md)
