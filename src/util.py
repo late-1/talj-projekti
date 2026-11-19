@@ -13,6 +13,8 @@ USERNAME_PATTERN = re.compile(r"[A-Za-z0-9_.-]+")
 FIELD_MAX_LENGTH = 200
 LONG_FIELD_MAX_LENGTH = 1000
 CITE_KEY_MAX_LENGTH = 50
+SEARCH_MAX_LENGTH = 200
+SEARCH_MAX_WORDS = 20
 
 YEAR_PATTERN = re.compile(r"[0-9]{4}")
 CITE_KEY_PATTERN = re.compile(r"[A-Za-z0-9_:.+/-]+")
@@ -42,6 +44,18 @@ def validate_password(password, password_confirmation):
 
     if password != password_confirmation:
         raise UserInputError("Passwords do not match")
+
+
+def search_words(query):
+    """
+    Splits the search into words. Every word has to be found in the reference.
+    Upper and lower case letters are equal, and the same word is used only once.
+    """
+    words = []
+    for word in query[:SEARCH_MAX_LENGTH].casefold().split():
+        if word not in words:
+            words.append(word)
+    return words[:SEARCH_MAX_WORDS]
 
 
 def field_max_length(name):

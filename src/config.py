@@ -22,3 +22,10 @@ def enable_foreign_keys(dbapi_connection, _connection_record):
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys = ON")
     cursor.close()
+
+    # SQLite compares only the letters a-z case-insensitively, so searching
+    # uses this function to make also letters such as Ä and ä equal
+    dbapi_connection.create_function(
+        "casefold", 1, lambda value: value.casefold() if isinstance(value, str) else value,
+        deterministic=True,
+    )

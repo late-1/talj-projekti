@@ -21,6 +21,8 @@ Nykyiset ominaisuudet:
   perusteella, tai sen voi antaa itse
 * omien viitteiden listaus; viitettä klikkaamalla aukeaa sen BibTeX-muoto, jonka
   saa leikepöydälle Copy-painikkeella
+* viitteiden haku yhdellä hakukentällä, joka hakee viitteen kaikesta sisällöstä
+  (kirjoittaja, otsikko, vuosi, julkaisu, avain jne.)
 
 ## Definition of Done
 
@@ -48,6 +50,9 @@ Sovellus aukeaa osoitteeseen http://localhost:5001. Pysäytä se näppäimillä 
 Ensimmäisellä kerralla skripti asentaa riippuvuudet, luo `.env`-tiedoston
 satunnaisella salaisella avaimella ja luo tietokannan. Myöhemmillä kerroilla
 olemassa oleva tietokanta säilyy, ja siihen lisätään puuttuvat taulut.
+
+`run.sh` käynnistää sovelluksen Flaskin debug-tilassa (`DEBUG=true`). Muuten,
+esimerkiksi OKD-klusterilla, debug-tila on pois päältä.
 
 Toisen portin käyttäminen:
 

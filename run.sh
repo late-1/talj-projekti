@@ -5,6 +5,7 @@
 #
 # Usage: ./run.sh
 # The port can be changed with the PORT environment variable (default 5001).
+# Flask debug mode is on here (DEBUG=true); it is off unless DEBUG is set.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -28,5 +29,6 @@ fi
 
 uv run python src/db_helper.py --if-missing
 
-echo "Starting bibtexgen at http://localhost:${PORT:-5001}"
+echo "Starting the application at http://localhost:${PORT:-5001}"
+export DEBUG=true
 exec uv run python src/index.py

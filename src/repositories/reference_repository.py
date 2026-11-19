@@ -4,9 +4,15 @@ from sqlalchemy.exc import IntegrityError
 from config import db
 from entities.reference import Reference
 from reference_types import FIELDS
-from util import UserInputError, cite_key_candidates
+from util import UserInputError, cite_key_candidates, search_words
 
 COLUMNS = ["id", "user_id", "entry_type", "cite_key"] + list(FIELDS)
+
+# Everything that the search looks at: the type, the key and all the fields.
+# The values are joined with line breaks, so a word cannot match over two fields.
+SEARCH_TEXT = "casefold(" + " || char(10) || ".join(
+    f"coalesce({column}, '')" for column in ["entry_type", "cite_key"] + list(FIELDS)
+) + ")"
 
 
 def _to_reference(row):
@@ -59,14 +65,29 @@ def create_reference(user_id, entry_type, fields, cite_key=None):
     return Reference(result.lastrowid, user_id, entry_type, cite_key, fields)
 
 
-def get_references(user_id):
-    """Returns the references of the user, newest first"""
+def get_references(user_id, query=""):
+    """
+    Returns the references of the user, newest first. With a search, returns
+    the references that contain every word of the search in any of their fields.
+    """
+    conditions = ["user_id = :user_id"]
+    params = {"user_id": user_id}
+
+    for index, word in enumerate(search_words(query)):
+        conditions.append(f"instr({SEARCH_TEXT}, :word{index}) > 0")
+        params[f"word{index}"] = word
+
     sql = text(
         f"SELECT {', '.join(COLUMNS)} FROM bib_references "
-        "WHERE user_id = :user_id ORDER BY id DESC"
+        f"WHERE {' AND '.join(conditions)} ORDER BY id DESC"
     )
-    result = db.session.execute(sql, {"user_id": user_id})
+    result = db.session.execute(sql, params)
     return [_to_reference(row) for row in result.fetchall()]
+
+
+def count_references(user_id):
+    sql = text("SELECT COUNT(*) FROM bib_references WHERE user_id = :user_id")
+    return db.session.execute(sql, {"user_id": user_id}).scalar()
 
 
 def get_reference(user_id, reference_id):

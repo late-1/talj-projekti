@@ -1,11 +1,26 @@
 {% extends "layout.html" %}
 
-{% block title %}References{% endblock %}
+{% block title %}{{ query or "References" }}{% endblock %}
 
 {% block content %}
-{% if references %}
+{% if total %}
 <div class="reference-list">
-  <p class="muted reference-count">{{ references | length }} {{ "reference" if references | length == 1 else "references" }}</p>
+  <form action="/references" method="get" class="search-form" role="search">
+    <label for="query" class="hidden-label">Search references</label>
+    <input type="text" name="query" id="query" value="{{ query }}" maxlength="{{ limits.SEARCH_MAX_LENGTH }}"
+           placeholder="search by author, title, year or anything else" />
+    <input type="submit" value="search" />
+  </form>
+
+  {% if references %}
+  <p class="muted reference-count">
+    {%- if query -%}
+    {{ references | length }} of {{ total }} {{ "reference" if total == 1 else "references" }}
+    <a href="/references" id="clear-search">show all</a>
+    {%- else -%}
+    {{ total }} {{ "reference" if total == 1 else "references" }}
+    {%- endif -%}
+  </p>
   {% for reference in references %}
   <a href="/references/{{ reference.id }}?back={{ request.full_path | urlencode }}" class="reference-card">
     <span class="reference-title">{{ reference.title }}</span>
@@ -17,6 +32,9 @@
     </span>
   </a>
   {% endfor %}
+  {% else %}
+  <p class="no-results">No references found. <a href="/references" id="clear-search">show all</a></p>
+  {% endif %}
 </div>
 {% else %}
 <p class="empty">No references yet. <a href="/add">Add the first one.</a></p>

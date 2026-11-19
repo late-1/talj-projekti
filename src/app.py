@@ -151,8 +151,13 @@ def add_reference():
 @app.route("/references")
 @login_required
 def list_references():
-    references = reference_repository.get_references(session["user_id"])
-    return render_template("references.html", references=references)
+    query = " ".join(request.args.get("query", "").split())[:util.SEARCH_MAX_LENGTH]
+    references = reference_repository.get_references(session["user_id"], query)
+    total = len(references) if not query \
+        else reference_repository.count_references(session["user_id"])
+    return render_template(
+        "references.html", references=references, query=query, total=total,
+    )
 
 
 @app.route("/references/<int:reference_id>")

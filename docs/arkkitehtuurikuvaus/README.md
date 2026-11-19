@@ -45,7 +45,7 @@ src/
   db_helper.py               taulujen luonti, tyhjennys ja nollaus
   schema.sql                 tietokannan taulut
   util.py                    syötteiden validointi, viiteavaimen muodostus,
-                             UserInputError
+                             hakusanojen pilkkominen, UserInputError
   reference_types.py         viitetyypit ja niiden kentät (yksi totuuden lähde)
   bibtex.py                  viitteen muotoilu BibTeX-muotoon
   entities/
@@ -82,7 +82,8 @@ Asetukset luetaan ympäristömuuttujista; `config.py` lataa lisäksi projektin j
 | --- | --- | --- |
 | `DATABASE_URL` | SQLAlchemy-osoite, esim. `sqlite:///database.db` | pakollinen |
 | `SECRET_KEY` | Flaskin istuntojen allekirjoitusavain | pakollinen |
-| `TEST_ENV` | `true` = testitila: `/reset_db`-reitti käytössä, debug pois | ei asetettu |
+| `TEST_ENV` | `true` = testitila: `/reset_db`-reitti käytössä | ei asetettu |
+| `DEBUG` | `true` = Flaskin debug-tila päällä | ei asetettu (debug pois) |
 | `HOST` | kuunneltava osoite | `127.0.0.1` |
 | `PORT` | portti | `5001` |
 
@@ -93,8 +94,10 @@ Asetukset luetaan ympäristömuuttujista; `config.py` lataa lisäksi projektin j
   `0.0.0.0`, mutta Flaskin debuggeria ei pidä avata lähiverkkoon. Klusterilla
   kontti kuuntelee kaikkia osoitteita (`HOST=0.0.0.0` tiedostossa
   `manifests/configmap.yaml`), jotta OKD:n Service tavoittaa sen.
-* Flaskin debug-tila on päällä aina, kun `TEST_ENV` ei ole `true`
-  (`src/index.py`), eli myös klusterilla.
+* Flaskin debug-tila on päällä vain, kun `DEBUG=true` (`src/index.py`).
+  `run.sh` asettaa sen, joten paikallisessa kehityksessä debuggeri on käytössä.
+  Klusterilla ja testeissä muuttujaa ei aseteta, joten virhetilanteessa
+  käyttäjälle ei näytetä tracebackia eikä lähdekoodia.
 * Klusterilla asetukset tulevat ympäristömuuttujina: `DATABASE_URL`,
   `TEST_ENV` ja `HOST` tiedostosta `manifests/configmap.yaml` ja `SECRET_KEY`
   tiedostosta `secret.env`, joka ei ole versionhallinnassa (ks. luku 11).
@@ -166,7 +169,7 @@ tietokanta alustetaan käsin, ks. luku 11.
 | `/logout` | GET | – | Tyhjentää istunnon, ohjaa `/login` |
 | `/add` | GET | vaaditaan | Viitteen lisäyslomake; `?type=book` valitsee tyypin valmiiksi |
 | `/add` | POST | vaaditaan + CSRF | Validoi ja tallentaa viitteen, ohjaa `/add?type=<tyyppi>` |
-| `/references` | GET | vaaditaan | Omien viitteiden listaus, uusin ensin |
+| `/references` | GET | vaaditaan | Omien viitteiden listaus, uusin ensin. `?query=<haku>` näyttää vain hakua vastaavat viitteet |
 | `/references/<id>` | GET | vaaditaan | Bibtex-sivu; `?back=<osoite>` kertoo, mihin back-painike palaa. Toisen käyttäjän tai olematon viite → 404 |
 | `/reset_db` | GET | – | Vain testitilassa: tyhjentää tietokannan ja istunnon |
 
@@ -272,7 +275,33 @@ viime kädessä tietokannan rajoitteella.
   oikeassa reunassa himmeämmällä tyyppi ja avain. Muut kentät (volume, pages,
   doi, …) näkyvät vain bibtex-sivulla.
 * Tyhjässä listassa on linkki lisäyssivulle.
-* Hakua ei vielä ole; kaikki käyttäjän viitteet näytetään kerralla.
+
+### Haku
+
+* Listauksen yläreunassa on yksi hakukenttä ja `search`-painike. Lomake on
+  GET-lomake, joten haku on osoitteessa (`/references?query=martin+2008`): sen voi
+  tallentaa kirjanmerkiksi, ja bibtex-sivun `back` palaa samaan hakutulokseen.
+* Haku jaetaan välilyönneistä sanoiksi. Viite löytyy, kun **jokainen** sana
+  esiintyy jossakin sen kentässä (JA-ehto). Sanat voivat olla eri kentissä ja
+  missä tahansa järjestyksessä, ja sanan osa riittää (`appren` löytää sanan
+  *Apprenticeship*).
+* Haku kohdistuu kaikkeen viitteen sisältöön: tyyppi, avain ja kaikki
+  BibTeX-kentät (myös ne, joita listauksessa ei näytetä, kuten doi ja pages).
+* Kirjainkoolla ei ole väliä, myöskään ääkkösissä. SQLite vertaa
+  kirjainkoosta riippumatta vain kirjaimet a–z, joten `config.py` rekisteröi
+  jokaiselle tietokantayhteydelle SQL-funktion `casefold()`, jota haku käyttää.
+  Aksentteja ei poisteta: `makela` ei löydä nimeä *Mäkelä*.
+* Toteutus (`reference_repository.get_references(user_id, query)`): kentät
+  yhdistetään SQL:ssä rivinvaihdoilla yhdeksi tekstiksi, ja jokaiselle sanalle
+  on ehto `instr(teksti, :sana) > 0`. Sanat ovat parametreja, eikä `instr`
+  tunne jokerimerkkejä, joten `%`, `_` ja lainausmerkit ovat tavallisia
+  merkkejä. Rivinvaihto kenttien välissä estää osumat kahden kentän rajan yli.
+* Rajat: haku enintään 200 merkkiä ja 20 eri sanaa (`util.search_words`).
+* Hakutuloksen yläpuolella lukee esim. `1 of 3 references` ja linkki `show all`,
+  joka poistaa haun. Jos mitään ei löydy, näytetään `No references found`.
+  Hakulomaketta ei näytetä käyttäjälle, jolla ei ole yhtään viitettä.
+* Haku ei muuta tietokannan rakennetta, joten klusterin tietokantaa ei tarvitse
+  luoda uudelleen (ks. luku 11).
 
 ### Bibtex-sivu (`/references/<id>`)
 
@@ -346,6 +375,7 @@ viime kädessä tietokannan rajoitteella.
 | `bibtex_test.py` | BibTeX-muotoilu kaikille tyypeille, erikoismerkit, sivuvälit |
 | `references_test.py` | Listaus (sisältö, järjestys, vain omat viitteet, escapointi), bibtex-sivu (sisältö, painikkeet, 404 toisen käyttäjän viitteelle), back-osoitteen rajaus |
 | `add_reference_test.py` | Lisäysreitti: lomake, kaikki kolme tyyppiä, virhetilanteet, arvojen säilyminen ja escapointi, kirjautumis- ja CSRF-vaatimus |
+| `search_test.py` | Hakusanojen pilkkominen, haku jokaisesta kentästä, kirjainkoko ja ääkköset, usea sana, erikoismerkit, vain omat viitteet, listaussivun hakulomake ja tulokset, paluu hakuun |
 
 `conftest.py` asettaa `DATABASE_URL`:n väliaikaistiedostoon ennen sovelluksen
 importtaamista, joten testit eivät koske kehitystietokantaan. Jokainen testi
@@ -371,6 +401,11 @@ selaimesta ja verrataan sivun BibTeXiin; selainkontekstille annetaan
 leikepöytäoikeudet), back- ja Copy-painikkeen sijainti samalla rivillä,
 back-painike ja se, ettei toisen käyttäjän viitettä näe.
 
+`search.robot` testaa haun selaimessa: yksi hakukenttä listan yläpuolella,
+haku otsikolla, kirjoittajalla ja vuodella, kirjainkoko ja ääkköset,
+enter-näppäin, tulokseton haku, `show all` ja paluu hakutulokseen
+bibtex-sivulta.
+
 ### Skriptit
 
 * `./test.sh` ajaa molemmat, `./test.sh unit` vain pytestin ja `./test.sh robot`
@@ -380,7 +415,7 @@ back-painike ja se, ettei toisen käyttäjän viitettä näe.
   (myös virhetilanteessa). Jos portti on jo käytössä, skripti keskeytyy
   selkeään virheilmoitukseen.
 * `./run.sh` asentaa riippuvuudet, luo tarvittaessa `.env`:n ja tietokannan ja
-  käynnistää sovelluksen.
+  käynnistää sovelluksen debug-tilassa (`DEBUG=true`).
 * Skriptit ovat bashia, käyttävät vain `uv`:tä ja `curl`ia ja toimivat macOS:llä
   ja Linuxilla. Ne poistavat `VIRTUAL_ENV`-muuttujan, jotta toisen projektin
   aktiivinen virtuaaliympäristö ei sotke uv:tä.
@@ -500,8 +535,22 @@ Keskeiset valinnat koottuna; yksityiskohdat ovat viitatuissa luvuissa.
 * BibTeX-muotoilu escapoi vain merkit `&`, `%` ja `#`; muu sisältö jätetään
   ennalleen, jotta käyttäjä voi kirjoittaa itse LaTeX-merkintää.
 
-**Listaus**
+**Listaus ja haku**
 
 * Listauksen laatikossa näytetään vain olennaisin (otsikko, kirjoittajat,
   vuosi, julkaisupaikka, tyyppi ja avain).
 * Listauksessa ei ole sivutusta; kaikki käyttäjän viitteet näytetään kerralla.
+* Haku on osoitteessa (GET-lomake), joten sen voi tallentaa kirjanmerkiksi ja
+  bibtex-sivulta palataan samaan hakutulokseen.
+* Hakusanat yhdistetään JA-ehdolla, sanan osa riittää, kirjainkoolla ei ole
+  väliä, eikä aksentteja poisteta.
+* Haku tehdään yhdellä SQL-kyselyllä tietokannassa eikä Pythonissa, joten
+  kaikkia viitteitä ei tarvitse hakea muistiin.
+
+**Ympäristö**
+
+* Flaskin debug-tila on oletuksena pois ja otetaan käyttöön erikseen
+  muuttujalla `DEBUG=true` (`run.sh` tekee sen paikallisesti). Debug-tila ei saa
+  olla päällä julkisessa osoitteessa, koska se näyttää virhetilanteessa
+  tracebackin ja lähdekoodia. Debug-tilaa ei sidota `TEST_ENV`-muuttujaan,
+  koska `TEST_ENV=true` avaa myös reitin `/reset_db`.
