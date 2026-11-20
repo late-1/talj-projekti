@@ -23,6 +23,8 @@ Nykyiset ominaisuudet:
   saa leikepöydälle Copy-painikkeella
 * viitteiden haku yhdellä hakukentällä, joka hakee viitteen kaikesta sisällöstä
   (kirjoittaja, otsikko, vuosi, julkaisu, avain jne.)
+* tarkennettu haku `advanced`-painikkeen takana: kirjoittaja, otsikko,
+  julkaisupaikka, avain, vuosiväli ja viitteen tyyppi
 
 ## Definition of Done
 

@@ -45,7 +45,8 @@ src/
   db_helper.py               taulujen luonti, tyhjennys ja nollaus
   schema.sql                 tietokannan taulut
   util.py                    syötteiden validointi, viiteavaimen muodostus,
-                             hakusanojen pilkkominen, UserInputError
+                             hakusanojen pilkkominen, hakuehtojen siivous
+                             ja tarkistus, UserInputError
   reference_types.py         viitetyypit ja niiden kentät (yksi totuuden lähde)
   bibtex.py                  viitteen muotoilu BibTeX-muotoon
   entities/
@@ -169,7 +170,7 @@ tietokanta alustetaan käsin, ks. luku 11.
 | `/logout` | GET | – | Tyhjentää istunnon, ohjaa `/login` |
 | `/add` | GET | vaaditaan | Viitteen lisäyslomake; `?type=book` valitsee tyypin valmiiksi |
 | `/add` | POST | vaaditaan + CSRF | Validoi ja tallentaa viitteen, ohjaa `/add?type=<tyyppi>` |
-| `/references` | GET | vaaditaan | Omien viitteiden listaus, uusin ensin. `?query=<haku>` näyttää vain hakua vastaavat viitteet |
+| `/references` | GET | vaaditaan | Omien viitteiden listaus, uusin ensin. Hakuparametrit: `query`, `author`, `title`, `venue`, `key`, `year_from`, `year_to`, `type`. Tyhjät ja tuntemattomat parametrit pudotetaan osoitteesta uudelleenohjauksella |
 | `/references/<id>` | GET | vaaditaan | Bibtex-sivu; `?back=<osoite>` kertoo, mihin back-painike palaa. Toisen käyttäjän tai olematon viite → 404 |
 | `/reset_db` | GET | – | Vain testitilassa: tyhjentää tietokannan ja istunnon |
 
@@ -276,7 +277,7 @@ viime kädessä tietokannan rajoitteella.
   doi, …) näkyvät vain bibtex-sivulla.
 * Tyhjässä listassa on linkki lisäyssivulle.
 
-### Haku
+### Haku (perusversio)
 
 * Listauksen yläreunassa on yksi hakukenttä ja `search`-painike. Lomake on
   GET-lomake, joten haku on osoitteessa (`/references?query=martin+2008`): sen voi
@@ -300,8 +301,48 @@ viime kädessä tietokannan rajoitteella.
 * Hakutuloksen yläpuolella lukee esim. `1 of 3 references` ja linkki `show all`,
   joka poistaa haun. Jos mitään ei löydy, näytetään `No references found`.
   Hakulomaketta ei näytetä käyttäjälle, jolla ei ole yhtään viitettä.
-* Haku ei muuta tietokannan rakennetta, joten klusterin tietokantaa ei tarvitse
-  luoda uudelleen (ks. luku 11).
+
+### Haku (advanced)
+
+* Hakukentän alapuolella on painike `advanced`, joka avaa ja sulkee
+  lisäkentät. Se on HTML:n `<details>`/`<summary>`-elementti painikkeen
+  näköiseksi tyyliteltynä, joten se toimii ilman JavaScriptiä. Auki ollessaan
+  painike on täytetty (musta).
+* Kentät ja niiden osoiteparametrit:
+
+  | Kenttä | Parametri | Kohdistuu | Ehto |
+  | --- | --- | --- | --- |
+  | author | `author` | author | jokainen sana löytyy |
+  | title | `title` | title | jokainen sana löytyy |
+  | published in | `venue` | journal, booktitle ja publisher | jokainen sana löytyy jostakin näistä |
+  | key | `key` | viiteavain | jokainen sana löytyy |
+  | from year | `year_from` | year | vuosi ≥ arvo |
+  | to year | `year_to` | year | vuosi ≤ arvo |
+  | type | `type` | viitteen tyyppi | täsmälleen sama (`any` = ei rajausta) |
+
+* Kaikki ehdot yhdistetään JA-ehdoin keskenään ja perushakukentän kanssa.
+  Tekstikentissä pätevät samat säännöt kuin perushaussa (sanan osa riittää,
+  kirjainkoolla ei väliä), mutta haku kohdistuu vain kyseiseen kenttään:
+  perushaku `dijkstra` löytää myös viitteen, jonka osoitteessa sana on,
+  `author=dijkstra` vain kirjoittajan.
+* Vuodet ovat tietokannassa nelinumeroista tekstiä, joten niitä voi verrata
+  suoraan tekstinä. Molemmat päät kuuluvat väliin.
+* Advanced-kentät ovat samassa GET-lomakkeessa kuin perushaku, joten koko haku
+  on osoitteessa ja `back` palauttaa sen. Selain lähettää myös tyhjät kentät;
+  palvelin ohjaa siistittyyn osoitteeseen (`/references?author=martin`), josta
+  tyhjät ja tuntemattomat parametrit on pudotettu ja välilyönnit siivottu
+  (`util.clean_search_params`).
+* Advanced-osio renderöidään auki aina, kun jokin sen parametreista on
+  osoitteessa, ja kentät säilyttävät arvonsa.
+* Virheellinen vuosi (ei nelinumeroinen) tai tuntematon tyyppi: näytetään
+  virheilmoitus ja kyseinen ehto jätetään huomiotta, muut ehdot pätevät
+  (`util.search_filters`). Selain estää virheellisen vuoden jo lomakkeessa
+  (`pattern`).
+* `show all` poistaa sekä perushaun että advanced-ehdot.
+* Repositorio: `get_references(user_id, query, filters)`; ehdot rakennetaan
+  kiinteistä SQL-lausekkeista (`FILTER_TEXTS`) ja arvot ovat aina parametreja.
+* Kumpikaan haku ei muuta tietokannan rakennetta, joten klusterin tietokantaa
+  ei tarvitse luoda uudelleen (ks. luku 11).
 
 ### Bibtex-sivu (`/references/<id>`)
 
@@ -376,6 +417,7 @@ viime kädessä tietokannan rajoitteella.
 | `references_test.py` | Listaus (sisältö, järjestys, vain omat viitteet, escapointi), bibtex-sivu (sisältö, painikkeet, 404 toisen käyttäjän viitteelle), back-osoitteen rajaus |
 | `add_reference_test.py` | Lisäysreitti: lomake, kaikki kolme tyyppiä, virhetilanteet, arvojen säilyminen ja escapointi, kirjautumis- ja CSRF-vaatimus |
 | `search_test.py` | Hakusanojen pilkkominen, haku jokaisesta kentästä, kirjainkoko ja ääkköset, usea sana, erikoismerkit, vain omat viitteet, listaussivun hakulomake ja tulokset, paluu hakuun |
+| `advanced_search_test.py` | Hakuparametrien siivous ja validointi, jokainen suodatin erikseen ja yhdessä, ero perushakuun, erikoismerkit, vain omat viitteet, listaussivun advanced-osio (auki/kiinni, arvojen säilyminen), osoitteen siistiminen, virheelliset arvot, paluu hakuun |
 
 `conftest.py` asettaa `DATABASE_URL`:n väliaikaistiedostoon ennen sovelluksen
 importtaamista, joten testit eivät koske kehitystietokantaan. Jokainen testi
@@ -405,6 +447,11 @@ back-painike ja se, ettei toisen käyttäjän viitettä näe.
 haku otsikolla, kirjoittajalla ja vuodella, kirjainkoko ja ääkköset,
 enter-näppäin, tulokseton haku, `show all` ja paluu hakutulokseen
 bibtex-sivulta.
+
+`advanced_search.robot` testaa advanced-haun selaimessa: painikkeen sijainti
+hakukentän alla, kenttien avaaminen ja sulkeminen, haku jokaisella kentällä,
+ehtojen yhdistäminen, osion pysyminen auki haun jälkeen, virheellinen vuosi,
+`show all` ja paluu hakutulokseen bibtex-sivulta.
 
 ### Skriptit
 
@@ -546,6 +593,11 @@ Keskeiset valinnat koottuna; yksityiskohdat ovat viitatuissa luvuissa.
   väliä, eikä aksentteja poisteta.
 * Haku tehdään yhdellä SQL-kyselyllä tietokannassa eikä Pythonissa, joten
   kaikkia viitteitä ei tarvitse hakea muistiin.
+* Advanced-haku on samassa lomakkeessa kuin perushaku ja toimii ilman
+  JavaScriptiä (`<details>`), joten koko haku on osoitteessa.
+* Advanced-haussa journal, booktitle ja publisher on yhdistetty yhdeksi
+  "published in" -kentäksi; harvinaisemmille kentille (volume, pages, doi, …)
+  ei ole omaa hakukenttää, mutta perushaku kattaa ne.
 
 **Ympäristö**
 

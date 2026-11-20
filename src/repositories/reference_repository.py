@@ -10,9 +10,20 @@ COLUMNS = ["id", "user_id", "entry_type", "cite_key"] + list(FIELDS)
 
 # Everything that the search looks at: the type, the key and all the fields.
 # The values are joined with line breaks, so a word cannot match over two fields.
-SEARCH_TEXT = "casefold(" + " || char(10) || ".join(
-    f"coalesce({column}, '')" for column in ["entry_type", "cite_key"] + list(FIELDS)
-) + ")"
+def _search_text(columns):
+    joined = " || char(10) || ".join(f"coalesce({column}, '')" for column in columns)
+    return f"casefold({joined})"
+
+
+SEARCH_TEXT = _search_text(["entry_type", "cite_key"] + list(FIELDS))
+
+# What the text fields of the advanced search look at
+FILTER_TEXTS = {
+    "author": _search_text(["author"]),
+    "title": _search_text(["title"]),
+    "venue": _search_text(["journal", "booktitle", "publisher"]),
+    "key": _search_text(["cite_key"]),
+}
 
 
 def _to_reference(row):
@@ -65,17 +76,42 @@ def create_reference(user_id, entry_type, fields, cite_key=None):
     return Reference(result.lastrowid, user_id, entry_type, cite_key, fields)
 
 
-def get_references(user_id, query=""):
+def get_references(user_id, query="", filters=None):
     """
-    Returns the references of the user, newest first. With a search, returns
-    the references that contain every word of the search in any of their fields.
+    Returns the references of the user, newest first.
+
+    With a search, returns the references that contain every word of the
+    search in any of their fields. The filters of the advanced search limit
+    the result further, and a reference has to match all of them:
+      author, title, venue, key: every word has to be found in that field
+      year_from, year_to: the first and the last year that are included
+      type: the entry type
     """
+    filters = filters or {}
     conditions = ["user_id = :user_id"]
     params = {"user_id": user_id}
 
     for index, word in enumerate(search_words(query)):
         conditions.append(f"instr({SEARCH_TEXT}, :word{index}) > 0")
         params[f"word{index}"] = word
+
+    for name, searched_text in FILTER_TEXTS.items():
+        for index, word in enumerate(search_words(filters.get(name, ""))):
+            conditions.append(f"instr({searched_text}, :{name}{index}) > 0")
+            params[f"{name}{index}"] = word
+
+    # years are stored as four digits, so they can be compared as text
+    if filters.get("year_from"):
+        conditions.append("year >= :year_from")
+        params["year_from"] = filters["year_from"]
+
+    if filters.get("year_to"):
+        conditions.append("year <= :year_to")
+        params["year_to"] = filters["year_to"]
+
+    if filters.get("type"):
+        conditions.append("entry_type = :type")
+        params["type"] = filters["type"]
 
     sql = text(
         f"SELECT {', '.join(COLUMNS)} FROM bib_references "

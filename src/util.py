@@ -58,6 +58,54 @@ def search_words(query):
     return words[:SEARCH_MAX_WORDS]
 
 
+# Search fields of the address /references?query=...&author=...
+SEARCH_TEXT_FILTERS = ["author", "title", "venue", "key"]
+SEARCH_YEAR_FILTERS = ["year_from", "year_to"]
+ADVANCED_SEARCH_PARAMS = SEARCH_TEXT_FILTERS + SEARCH_YEAR_FILTERS + ["type"]
+SEARCH_PARAMS = ["query"] + ADVANCED_SEARCH_PARAMS
+
+
+def clean_search_params(args):
+    """
+    Returns the search fields that have a value, with extra whitespace
+    removed and too long values shortened.
+    """
+    params = {}
+    for name in SEARCH_PARAMS:
+        value = " ".join((args.get(name) or "").split())[:SEARCH_MAX_LENGTH].strip()
+        if value:
+            params[name] = value
+    return params
+
+
+def search_filters(params):
+    """
+    Picks the valid advanced search fields from the cleaned search fields.
+    Returns the filters and the error messages of the fields that are left out.
+    """
+    filters = {}
+    errors = []
+
+    for name in SEARCH_TEXT_FILTERS:
+        if name in params:
+            filters[name] = params[name]
+
+    for name in SEARCH_YEAR_FILTERS:
+        if name in params:
+            if YEAR_PATTERN.fullmatch(params[name]):
+                filters[name] = params[name]
+            elif "Years must be four-digit numbers" not in errors:
+                errors.append("Years must be four-digit numbers")
+
+    if "type" in params:
+        if params["type"] in ENTRY_TYPES:
+            filters["type"] = params["type"]
+        else:
+            errors.append("Unknown reference type")
+
+    return filters, errors
+
+
 def field_max_length(name):
     return LONG_FIELD_MAX_LENGTH if name in LONG_FIELDS else FIELD_MAX_LENGTH
 

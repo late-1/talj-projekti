@@ -1,5 +1,6 @@
 import secrets
 from functools import wraps
+from urllib.parse import urlencode
 
 from flask import abort, flash, jsonify, redirect, render_template, request, session
 
@@ -151,12 +152,27 @@ def add_reference():
 @app.route("/references")
 @login_required
 def list_references():
-    query = " ".join(request.args.get("query", "").split())[:util.SEARCH_MAX_LENGTH]
-    references = reference_repository.get_references(session["user_id"], query)
-    total = len(references) if not query \
-        else reference_repository.count_references(session["user_id"])
+    search = util.clean_search_params(request.args)
+
+    # empty search fields are dropped from the address
+    if search != request.args.to_dict():
+        return redirect("/references?" + urlencode(search) if search else "/references")
+
+    filters, errors = util.search_filters(search)
+    for error in errors:
+        flash(error)
+
+    query = search.get("query", "")
+    references = reference_repository.get_references(session["user_id"], query, filters)
+    total = reference_repository.count_references(session["user_id"])
+
     return render_template(
-        "references.html", references=references, query=query, total=total,
+        "references.html",
+        references=references,
+        total=total,
+        search=search,
+        searching=bool(search),
+        advanced_open=any(name in search for name in util.ADVANCED_SEARCH_PARAMS),
     )
 
 

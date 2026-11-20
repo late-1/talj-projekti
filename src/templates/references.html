@@ -1,20 +1,69 @@
 {% extends "layout.html" %}
 
-{% block title %}{{ query or "References" }}{% endblock %}
+{% block title %}{{ search.query or "References" }}{% endblock %}
 
 {% block content %}
 {% if total %}
 <div class="reference-list">
-  <form action="/references" method="get" class="search-form" role="search">
-    <label for="query" class="hidden-label">Search references</label>
-    <input type="text" name="query" id="query" value="{{ query }}" maxlength="{{ limits.SEARCH_MAX_LENGTH }}"
-           placeholder="search by author, title, year or anything else" />
-    <input type="submit" value="search" />
+  <form action="/references" method="get" class="search" role="search">
+    <div class="search-form">
+      <label for="query" class="hidden-label">Search references</label>
+      <input type="text" name="query" id="query" value="{{ search.query }}" maxlength="{{ limits.SEARCH_MAX_LENGTH }}"
+             placeholder="search by author, title, year or anything else" />
+      <input type="submit" value="search" />
+    </div>
+
+    <details class="advanced" id="advanced" {% if advanced_open %}open{% endif %}>
+      <summary class="button">advanced</summary>
+      <div class="advanced-fields form">
+        <p>
+          <label for="author">author</label>
+          <input type="text" name="author" id="author" value="{{ search.author }}" maxlength="{{ limits.SEARCH_MAX_LENGTH }}" />
+        </p>
+        <p>
+          <label for="title">title</label>
+          <input type="text" name="title" id="title" value="{{ search.title }}" maxlength="{{ limits.SEARCH_MAX_LENGTH }}" />
+        </p>
+        <p>
+          <label for="venue">published in (journal, proceedings or publisher)</label>
+          <input type="text" name="venue" id="venue" value="{{ search.venue }}" maxlength="{{ limits.SEARCH_MAX_LENGTH }}" />
+        </p>
+        <p>
+          <label for="key">key</label>
+          <input type="text" name="key" id="key" value="{{ search.key }}" maxlength="{{ limits.SEARCH_MAX_LENGTH }}" />
+        </p>
+        <div class="years">
+          <p>
+            <label for="year_from">from year</label>
+            <input type="text" name="year_from" id="year_from" value="{{ search.year_from }}"
+                   inputmode="numeric" pattern="[0-9]{4}" title="four-digit year" />
+          </p>
+          <p>
+            <label for="year_to">to year</label>
+            <input type="text" name="year_to" id="year_to" value="{{ search.year_to }}"
+                   inputmode="numeric" pattern="[0-9]{4}" title="four-digit year" />
+          </p>
+        </div>
+        <fieldset class="type-choice">
+          <legend>type</legend>
+          <span>
+            <input type="radio" name="type" id="type-any" value="" {% if search.type not in reference_types.ENTRY_TYPES %}checked{% endif %} />
+            <label for="type-any">any</label>
+          </span>
+          {% for type in reference_types.ENTRY_TYPES %}
+          <span>
+            <input type="radio" name="type" id="type-{{ type }}" value="{{ type }}" {% if type == search.type %}checked{% endif %} />
+            <label for="type-{{ type }}">{{ type }}</label>
+          </span>
+          {% endfor %}
+        </fieldset>
+      </div>
+    </details>
   </form>
 
   {% if references %}
   <p class="muted reference-count">
-    {%- if query -%}
+    {%- if searching -%}
     {{ references | length }} of {{ total }} {{ "reference" if total == 1 else "references" }}
     <a href="/references" id="clear-search">show all</a>
     {%- else -%}

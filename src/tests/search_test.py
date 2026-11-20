@@ -167,9 +167,12 @@ def titles(page):
 
 def test_list_has_search_form(client, logged_in):
     page = page_of(client, "/references")
-    assert '<form action="/references" method="get" class="search-form"' in page
-    assert page.count('<input type="text"') == 1
+    assert '<form action="/references" method="get" class="search"' in page
     assert 'name="query"' in page
+    # only the basic field is visible by default: the advanced part is closed
+    visible = page[:page.index("<details")]
+    assert visible.count('<input type="text"') == 1
+    assert '<details class="advanced" id="advanced" >' in page
     assert "3 references" in page
     assert "show all" not in page
 
@@ -190,7 +193,11 @@ def test_search_with_several_words(client, logged_in):
 
 def test_empty_search_shows_everything(client, logged_in):
     for url in ["/references?query=", "/references?query=+++"]:
-        page = page_of(client, url)
+        response = client.get(url)
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/references"
+
+        page = page_of(client, response.headers["Location"])
         assert len(titles(page)) == 3
         assert "3 references" in page
         assert "show all" not in page
@@ -231,7 +238,10 @@ def test_search_is_escaped_on_the_page(client, logged_in):
 
 
 def test_search_is_shortened_when_too_long(client, logged_in):
-    page = page_of(client, "/references?query=" + "a" * 500)
+    response = client.get("/references?query=" + "a" * 500)
+    assert response.headers["Location"] == "/references?query=" + "a" * SEARCH_MAX_LENGTH
+
+    page = page_of(client, response.headers["Location"])
     assert f'value="{"a" * SEARCH_MAX_LENGTH}"' in page
 
 
