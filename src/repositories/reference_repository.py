@@ -33,15 +33,19 @@ def _to_reference(row):
     )
 
 
-def get_cite_keys(user_id):
-    sql = text("SELECT cite_key FROM bib_references WHERE user_id = :user_id")
-    result = db.session.execute(sql, {"user_id": user_id})
+def get_cite_keys(user_id, exclude_id=None):
+    """Keys of the user; the reference that is being edited can be left out"""
+    sql = text(
+        "SELECT cite_key FROM bib_references "
+        "WHERE user_id = :user_id AND (:exclude_id IS NULL OR id != :exclude_id)"
+    )
+    result = db.session.execute(sql, {"user_id": user_id, "exclude_id": exclude_id})
     return {row[0] for row in result.fetchall()}
 
 
-def generate_cite_key(user_id, author, year):
+def generate_cite_key(user_id, author, year, exclude_id=None):
     """Returns a key such as martin2008 that the user does not have yet"""
-    used_keys = get_cite_keys(user_id)
+    used_keys = get_cite_keys(user_id, exclude_id)
     for candidate in cite_key_candidates(author, year):
         if candidate not in used_keys:
             return candidate
@@ -74,6 +78,52 @@ def create_reference(user_id, entry_type, fields, cite_key=None):
         raise UserInputError(f"Key {cite_key} is already in use, pick another one") from error
 
     return Reference(result.lastrowid, user_id, entry_type, cite_key, fields)
+
+
+def update_reference(user_id, reference_id, entry_type, fields, cite_key=None):
+    """
+    Replaces the content of a reference of the user with validated values.
+    Fields that are not given are emptied. When the key is not given, it is
+    generated again. Returns None when the user has no such reference.
+    """
+    if not cite_key:
+        cite_key = generate_cite_key(
+            user_id, fields["author"], fields["year"], exclude_id=reference_id
+        )
+
+    assignments = ", ".join(
+        ["entry_type = :entry_type", "cite_key = :cite_key"] + [f"{n} = :{n}" for n in FIELDS]
+    )
+    sql = text(
+        f"UPDATE bib_references SET {assignments} WHERE id = :id AND user_id = :user_id"
+    )
+
+    params = {name: fields.get(name) for name in FIELDS}
+    params.update({
+        "id": reference_id, "user_id": user_id,
+        "entry_type": entry_type, "cite_key": cite_key,
+    })
+
+    try:
+        result = db.session.execute(sql, params)
+        db.session.commit()
+    except IntegrityError as error:
+        db.session.rollback()
+        if "UNIQUE" not in str(error.orig):
+            raise
+        raise UserInputError(f"Key {cite_key} is already in use, pick another one") from error
+
+    if result.rowcount == 0:
+        return None
+    return Reference(reference_id, user_id, entry_type, cite_key, fields)
+
+
+def delete_reference(user_id, reference_id):
+    """Deletes a reference of the user. Returns False when there is no such reference."""
+    sql = text("DELETE FROM bib_references WHERE id = :id AND user_id = :user_id")
+    result = db.session.execute(sql, {"id": reference_id, "user_id": user_id})
+    db.session.commit()
+    return result.rowcount > 0
 
 
 def get_references(user_id, query="", filters=None):

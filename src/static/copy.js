@@ -40,8 +40,8 @@
 
   button.addEventListener("click", function () {
     copy(target.textContent).then(
-      function () { showLabel("Copied"); },
-      function () { showLabel("Copy failed"); }
+      function () { showLabel("copied"); },
+      function () { showLabel("copy failed"); }
     );
   });
 })();

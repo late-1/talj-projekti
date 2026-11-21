@@ -20,11 +20,14 @@ Nykyiset ominaisuudet:
 * viiteavain (`\cite{avain}`) luodaan automaattisesti kirjoittajan ja vuoden
   perusteella, tai sen voi antaa itse
 * omien viitteiden listaus; viitettä klikkaamalla aukeaa sen BibTeX-muoto, jonka
-  saa leikepöydälle Copy-painikkeella
+  saa leikepöydälle `copy`-painikkeella
 * viitteiden haku yhdellä hakukentällä, joka hakee viitteen kaikesta sisällöstä
   (kirjoittaja, otsikko, vuosi, julkaisu, avain jne.)
 * tarkennettu haku `advanced`-painikkeen takana: kirjoittaja, otsikko,
   julkaisupaikka, avain, vuosiväli ja viitteen tyyppi
+* viitteen muokkaaminen ja poistaminen sen BibTeX-sivulta (`edit` ja `delete`)
+* BibTeX-sivulla BibTeXin alla viitteen tiedot luettavassa muodossa:
+  lähdeluettelotyylinen viite ja kaikki täytetyt kentät
 
 ## Definition of Done
 
@@ -126,6 +129,7 @@ src/schema.sql          tietokannan taulut
 src/util.py             syötteiden validointi, viiteavaimen muodostus
 src/reference_types.py  tuetut viitetyypit ja niiden kentät
 src/bibtex.py           viitteen muotoilu BibTeX-muotoon
+src/citation.py         viitteen muotoilu lähdeluettelon muotoon
 src/repositories/       tietokantakyselyt
 src/entities/           tietoa kuvaavat luokat
 src/templates/          HTML-sivut

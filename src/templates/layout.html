@@ -13,7 +13,7 @@
   <nav class="top-bar">
     <div class="nav-left">
       <a href="/add" {% if request.endpoint == "add_reference" %}class="active" aria-current="page"{% endif %}>add</a>
-      <a href="/references" {% if request.endpoint in ["list_references", "show_reference"] %}class="active" aria-current="page"{% endif %}>view / search</a>
+      <a href="/references" {% if request.endpoint in ["list_references", "show_reference", "edit_reference"] %}class="active" aria-current="page"{% endif %}>view / search</a>
     </div>
     <div class="nav-center">
       <span class="brand">bibtexgen</span>

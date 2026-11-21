@@ -1,0 +1,39 @@
+{# The fields of a reference: used by the add form and the edit form #}
+    <fieldset class="type-choice">
+      <legend>type</legend>
+      {% for type in reference_types.ENTRY_TYPES %}
+      <span>
+        <input type="radio" name="entry_type" id="type-{{ type }}" value="{{ type }}"
+               {% if type == entry_type %}checked{% endif %} />
+        <label for="type-{{ type }}">{{ type }}</label>
+      </span>
+      {% endfor %}
+    </fieldset>
+
+    <div class="reference-fields">
+    {% for name, label in reference_types.FIELDS.items() %}
+    {% set required_for = reference_types.types_requiring(name) %}
+    {% set optional_for = reference_types.types_with_optional(name) %}
+    {% set in_use = entry_type in required_for or entry_type in optional_for %}
+    <p class="field{% if name in reference_types.LONG_FIELDS %} long{% endif %}" data-required-for="{{ required_for | join(' ') }}" data-optional-for="{{ optional_for | join(' ') }}"
+       {% if not in_use %}hidden{% endif %}>
+      <label for="{{ name }}">{{ label }}<span class="optional-mark" {% if entry_type not in optional_for %}hidden{% endif %}> (optional)</span></label>
+      <input type="text" name="{{ name }}" id="{{ name }}" value="{{ values.get(name, '') }}"
+             maxlength="{{ limits.field_max_length(name) }}"
+             {% if name == "year" %}inputmode="numeric" pattern="[0-9]{4}" title="four-digit year"{% endif %}
+             {% if entry_type in required_for %}required{% endif %}
+             {% if not in_use %}disabled{% endif %} />
+      {% if name in reference_types.FIELD_HINTS %}
+      <span class="muted hint">{{ reference_types.FIELD_HINTS[name] }}</span>
+      {% endif %}
+    </p>
+    {% endfor %}
+
+    <p class="key-field long">
+      <label for="cite_key">key (optional)</label>
+      <input type="text" name="cite_key" id="cite_key" value="{{ cite_key }}"
+             maxlength="{{ limits.CITE_KEY_MAX_LENGTH }}" />
+      <span class="muted hint">The key is used in LaTeX: \cite{key}. When left empty, it is created
+        from the first author and the year, for example martin2008.</span>
+    </p>
+    </div>

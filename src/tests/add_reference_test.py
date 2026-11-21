@@ -45,7 +45,7 @@ def test_add_page_form_contains_csrf_token_of_the_session(client, actions, logge
 
 
 def test_script_is_served(client):
-    assert client.get("/static/add_reference.js").status_code == 200
+    assert client.get("/static/reference_form.js").status_code == 200
 
 
 # adding

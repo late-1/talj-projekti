@@ -201,7 +201,7 @@ input[type="submit"]:hover,
 
 .empty {
   margin: 0;
-  padding: 3rem var(--edge);
+  padding: 5.5rem var(--edge) 3rem var(--edge);
   color: var(--muted);
 }
 
@@ -218,7 +218,7 @@ input[type="submit"]:hover,
   gap: 1rem;
   max-width: 46rem;
   margin: 0 auto;
-  padding: 1rem var(--edge) 5rem var(--edge);
+  padding: 3.5rem var(--edge) 5rem var(--edge);
   box-sizing: content-box;
 }
 
@@ -341,28 +341,91 @@ input[type="submit"]:hover,
 /* single reference as BibTeX */
 
 .bibtex-view {
+  /*
+   * one column: the buttons, the edit form (when editing), the BibTeX and
+   * the details of the reference; nothing goes over the sides of the boxes
+   */
   max-width: 46rem;
   margin: 0 auto;
-  padding: 1rem var(--edge) 5rem var(--edge);
+  /* below the top bar there is about the height of one button more space
+     than before; the same on every page with the top bar */
+  padding: 3.5rem var(--edge) 5rem var(--edge);
   box-sizing: content-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bibtex-toolbar {
+  /* back on the left, copy, edit and delete on the right */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .bibtex-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.button.current {
+  background: var(--text);
+  color: var(--background);
+}
+
+/* editing a reference */
+
+.edit-form {
   margin-bottom: 1rem;
 }
 
-.bibtex {
+.edit-form .reference-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 2rem;
+}
+
+.edit-form .reference-fields .long {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.bibtex,
+.reference-box {
   margin: 0;
   padding: 1.25rem;
   border: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.bibtex {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.87rem;
   line-height: 1.7;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+}
+
+/* below the BibTeX: the reference as a citation and field by field, each in its own box */
+
+.reference-data {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.25rem 1.5rem;
+}
+
+.reference-data dt {
+  color: var(--muted);
+}
+
+.reference-data dd {
+  margin: 0;
 }
 
 /* narrow pages: login, register, add reference */
@@ -374,6 +437,11 @@ input[type="submit"]:hover,
   box-sizing: content-box;
 }
 
+/* below the top bar (add reference) there is as much space as on the other pages */
+.top-bar ~ main .narrow {
+  padding-top: 4.5rem;
+}
+
 .narrow .form + p {
   margin-top: 1rem;
 }
@@ -383,8 +451,18 @@ input[type="submit"]:hover,
     --edge: 1.25rem;
   }
 
-  .advanced-fields {
+  .advanced-fields,
+  .edit-form .reference-fields {
     grid-template-columns: 1fr;
+  }
+
+  .reference-data {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+  }
+
+  .reference-data dd {
+    margin-bottom: 0.5rem;
   }
 
   .reference-card {

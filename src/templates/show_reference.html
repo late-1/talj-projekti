@@ -4,11 +4,48 @@
 
 {% block content %}
 <div class="bibtex-view">
-  <div class="bibtex-actions">
+  <div class="bibtex-toolbar">
     <a href="{{ back }}" class="button" id="back">back</a>
-    <button type="button" class="button" id="copy" data-copy-target="bibtex">Copy</button>
+    <div class="bibtex-actions">
+      <button type="button" class="button" id="copy" data-copy-target="bibtex">copy</button>
+      <a href="{{ edit_url }}" class="button{% if editing %} current{% endif %}" id="edit">edit</a>
+      <form action="{{ delete_url }}" method="post" id="delete-form"
+            onsubmit="return confirm('Delete this reference?')">
+        <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}" />
+        <button type="submit" class="button" id="delete">delete</button>
+      </form>
+    </div>
   </div>
+
+  {% if editing %}
+  <form action="{{ edit_url }}" method="post" class="form edit-form" id="reference-form">
+    {% include "reference_fields.html" %}
+
+    <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}" />
+    <div class="form-actions">
+      <input type="submit" value="save" id="save" />
+      <a href="{{ show_url }}" class="button" id="cancel">cancel</a>
+    </div>
+  </form>
+  {% endif %}
+
   <pre class="bibtex" id="bibtex">{{ bibtex }}</pre>
+
+  <p class="reference-box citation" id="citation">{{ citation }}</p>
+
+  <dl class="reference-box reference-data" id="details">
+    <dt>type</dt>
+    <dd id="data-type">{{ reference.entry_type }}</dd>
+    <dt>key</dt>
+    <dd id="data-key">{{ reference.cite_key }}</dd>
+    {% for name, value in reference.fields.items() %}
+    <dt>{{ labels[name] }}</dt>
+    <dd id="data-{{ name }}">{{ value }}</dd>
+    {% endfor %}
+  </dl>
 </div>
 <script src="/static/copy.js"></script>
+{% if editing %}
+<script src="/static/reference_form.js"></script>
+{% endif %}
 {% endblock %}

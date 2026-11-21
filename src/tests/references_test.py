@@ -126,7 +126,7 @@ def test_bibtex_page_has_copy_and_back_buttons(client, actions, logged_in):
     reference = own_references(actions)[0]
     page = text_of(client.get(f"/references/{reference.id}"))
 
-    copy_button = r'<button[^>]*id="copy"[^>]*data-copy-target="bibtex"[^>]*>Copy</button>'
+    copy_button = r'<button[^>]*id="copy"[^>]*data-copy-target="bibtex"[^>]*>copy</button>'
     assert re.search(copy_button, page)
     assert '<a href="/references" class="button" id="back">back</a>' in page
     assert 'src="/static/copy.js"' in page
@@ -147,6 +147,76 @@ def test_bibtex_page_escapes_content(client, actions, logged_in):
     page = text_of(client.get(f"/references/{reference.id}"))
     assert "<script>alert(1)</script>" not in page
     assert "</pre><script>alert(1)</script>" in bibtex_on_page(page)
+
+
+def page_of_reference(client, actions, **fields):
+    actions.add_reference(**fields)
+    reference = own_references(actions)[0]
+    return text_of(client.get(f"/references/{reference.id}"))
+
+
+def citation_on_page(page):
+    match = re.search(r'<p class="reference-box citation" id="citation">(.*?)</p>', page, re.S)
+    return match.group(1)
+
+
+def details_on_page(page):
+    match = re.search(r'<dl class="reference-box reference-data" id="details">(.*?)</dl>',
+                      page, re.S)
+    return match.group(1)
+
+
+def test_bibtex_page_has_buttons_above_the_bibtex(client, actions, logged_in):
+    page = page_of_reference(client, actions)
+    toolbar = page.index('class="bibtex-toolbar"')
+    # back on the left, then copy, edit and delete on the right
+    assert toolbar < page.index('id="back"') < page.index('id="copy"') \
+        < page.index('id="edit"') < page.index('id="delete"') < page.index('id="bibtex"')
+
+
+def test_bibtex_page_shows_citation_and_details_below_the_bibtex(client, actions, logged_in):
+    page = page_of_reference(client, actions, pages="12-34", volume="12")
+    # three separate boxes: BibTeX, citation and fields
+    assert page.index('id="bibtex"') < page.index('id="citation"') < page.index('id="details"')
+
+    assert citation_on_page(page) == "Martin, Robert (2008). Clean Code. " \
+        "<i>Journal of Software</i>, <i>12</i>, 12–34."
+    details = details_on_page(page)
+    assert "citation" not in details
+    for name, label, value in [
+        ("type", "type", "article"), ("key", "key", "martin2008"),
+        ("author", "author(s)", "Martin, Robert"), ("title", "title", "Clean Code"),
+        ("journal", "journal", "Journal of Software"), ("year", "year", "2008"),
+        ("volume", "volume", "12"), ("pages", "pages", "12-34"),
+    ]:
+        assert re.search(rf"<dt>{re.escape(label)}</dt>\s*<dd id=\"data-{name}\">"
+                         rf"{re.escape(value)}</dd>", details)
+
+
+def test_details_show_only_filled_fields_in_form_order(client, actions, logged_in):
+    page = page_of_reference(client, actions, **BOOK, edition="2nd")
+    details = details_on_page(page)
+    names = re.findall(r'<dd id="data-(\w+)">', details)
+    assert names == ["type", "key", "author", "title", "publisher", "year", "edition"]
+    assert "<dt>isbn</dt>" not in details.lower()
+
+
+def test_details_use_short_labels(client, actions, logged_in):
+    page = page_of_reference(client, actions, **INPROCEEDINGS)
+    details = details_on_page(page)
+    assert "<dt>book title</dt>" in details
+    assert "name of the proceedings" not in details
+    assert "In <i>SIGCSE &#39;11</i>." in citation_on_page(page)
+
+
+def test_details_escape_content(client, actions, logged_in):
+    page = page_of_reference(client, actions, title="<script>alert(1)</script>",
+                             journal="<b>Journal</b>")
+    assert "<script>alert(1)</script>" not in page
+    assert "<b>Journal</b>" not in page
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in details_on_page(page)
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in citation_on_page(page)
+    assert "<i>&lt;b&gt;Journal&lt;/b&gt;</i>" in citation_on_page(page)
 
 
 def test_copy_script_is_served(client):

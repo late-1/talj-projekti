@@ -34,6 +34,9 @@ FIELDS = {
     "doi": "DOI",
 }
 
+# Field names without the explanation in parentheses, for showing a reference
+SHORT_LABELS = {name: label.split(" (", maxsplit=1)[0] for name, label in FIELDS.items()}
+
 FIELD_HINTS = {
     "author": "Separate several authors with the word and, "
               "for example: Martin, Robert and Fowler, Martin",

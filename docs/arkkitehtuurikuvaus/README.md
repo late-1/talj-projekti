@@ -6,7 +6,7 @@ Käynnistys- ja testausohjeet ovat repositorion juuren `README.md`:ssä.
 ## 1. Yleiskuva
 
 Kyseessä on Flask-sovellus, jolla käyttäjä tallentaa lähdeviitteitä lomakkeella,
-selaa omia viitteitään ja saa ne BibTeX-muodossa LaTeX-dokumenttia varten.
+selaa ja hakee omia viitteitään ja saa ne BibTeX-muodossa LaTeX-dokumenttia varten.
 Jokaisella käyttäjällä on oma tunnus, ja käyttäjä näkee vain omat viitteensä.
 
 ## 2. Tekniikka
@@ -49,6 +49,7 @@ src/
                              ja tarkistus, UserInputError
   reference_types.py         viitetyypit ja niiden kentät (yksi totuuden lähde)
   bibtex.py                  viitteen muotoilu BibTeX-muotoon
+  citation.py                viitteen muotoilu lähdeluettelon muotoon
   entities/
     user.py                  User-luokka
     reference.py             Reference-luokka
@@ -59,11 +60,13 @@ src/
     layout.html              yhteinen runko, yläpalkki, ilmoitukset
     login.html, register.html
     add_reference.html       viitteen lisäyslomake
+    reference_fields.html    viitteen kentät (lisäys- ja muokkauslomakkeen yhteinen osa)
     references.html          viitelistaus
-    show_reference.html      bibtex-sivu
+    show_reference.html      bibtex-sivu (painikkeet, BibTeX, lähdeviite, kentät)
+                             ja muokkauslomake
   static/main.css            tyylit
-  static/add_reference.js    lomakkeen kenttien vaihto viitetyypin mukaan
-  static/copy.js             Copy-painike (leikepöytä)
+  static/reference_form.js   lomakkeen kenttien vaihto viitetyypin mukaan
+  static/copy.js             copy-painike (leikepöytä)
   tests/                     pytest-testit
   story_tests/               Robot Framework -testit
   instance/                  SQLite-tiedostot (ei versionhallinnassa)
@@ -129,9 +132,8 @@ CREATE TABLE bib_references (
 
 * Taulun nimi on `bib_references`, koska `references` on SQL:n varattu sana.
 * Jokaisella BibTeX-kentällä on oma sarakkeensa (ei erillistä avain–arvo-taulua).
-  Kenttiä on vähän, ja näin myöhemmin toteutettava kenttäkohtainen haku on
-  suoraviivainen. Kentät, jotka eivät kuulu viitteen tyyppiin tai ovat tyhjiä,
-  ovat `NULL`.
+  Kenttiä on vähän, ja näin kenttäkohtainen haku on suoraviivainen.
+  Kentät, jotka eivät kuulu viitteen tyyppiin tai ovat tyhjiä, ovat `NULL`.
 * Kaikki kentät ovat tekstiä, myös `year`, `volume` ja `number`, koska BibTeX
   käsittelee niitä tekstinä (esim. `number = {3-4}`).
 * `UNIQUE (user_id, cite_key)` takaa, että avain on uniikki käyttäjäkohtaisesti.
@@ -172,6 +174,9 @@ tietokanta alustetaan käsin, ks. luku 11.
 | `/add` | POST | vaaditaan + CSRF | Validoi ja tallentaa viitteen, ohjaa `/add?type=<tyyppi>` |
 | `/references` | GET | vaaditaan | Omien viitteiden listaus, uusin ensin. Hakuparametrit: `query`, `author`, `title`, `venue`, `key`, `year_from`, `year_to`, `type`. Tyhjät ja tuntemattomat parametrit pudotetaan osoitteesta uudelleenohjauksella |
 | `/references/<id>` | GET | vaaditaan | Bibtex-sivu; `?back=<osoite>` kertoo, mihin back-painike palaa. Toisen käyttäjän tai olematon viite → 404 |
+| `/references/<id>/edit` | GET | vaaditaan | Bibtex-sivu, jossa muokkauslomake on auki BibTeXin yläpuolella |
+| `/references/<id>/edit` | POST | vaaditaan + CSRF | Validoi ja tallentaa muutokset, ohjaa `/references/<id>` |
+| `/references/<id>/delete` | POST | vaaditaan + CSRF | Poistaa viitteen, ohjaa listaukseen (`back`-osoitteeseen) |
 | `/reset_db` | GET | – | Vain testitilassa: tyhjentää tietokannan ja istunnon |
 
 Epäonnistunut kirjautuminen tai rekisteröinti näyttää saman lomakkeen uudelleen
@@ -194,7 +199,7 @@ virheilmoituksen kanssa, ja käyttäjätunnus säilyy kentässä.
 * `@login_required` tarkistaa myös, että istunnon käyttäjä on yhä tietokannassa;
   jos ei ole (esim. tietokanta on luotu uudelleen), istunto tyhjennetään.
 * **CSRF:** jokainen istunto saa satunnaisen tunnisteen, joka on piilokenttänä
-  kirjautuneen käyttäjän POST-lomakkeissa (toistaiseksi lisäyslomake) ja
+  kirjautuneen käyttäjän POST-lomakkeissa (lisäys, muokkaus ja poisto) ja
   tarkistetaan funktiolla `check_csrf()` (virheellinen tai puuttuva → 403).
   Kirjautumis- ja rekisteröintilomakkeissa tunnistetta ei ole (istuntoa ei
   vielä ole).
@@ -257,7 +262,7 @@ viime kädessä tietokannan rajoitteella.
 
 * Tyyppi valitaan lomakkeen yläreunasta (radiopainikkeet, jotka näyttävät
   tekstilinkeiltä; valittu on alleviivattu kuten yläpalkissa).
-* Kaikki kentät ovat sivulla; `add_reference.js` näyttää valitun tyypin kentät,
+* Kaikki kentät ovat sivulla; `reference_form.js` näyttää valitun tyypin kentät,
   piilottaa muut ja merkitsee ne `disabled`-tilaan (jolloin selain ei lähetä
   eikä vaadi niitä) sekä päivittää `required`-määreet ja "(optional)"-merkinnät.
   Palvelin renderöi saman alkutilan, joten sivu on oikein jo ennen skriptin
@@ -346,21 +351,65 @@ viime kädessä tietokannan rajoitteella.
 
 ### Bibtex-sivu (`/references/<id>`)
 
-* BibTeX on `<pre>`-laatikossa sivun keskellä. Laatikon yläpuolella samalla
-  rivillä on vasemmalla `back` ja oikealla `Copy`.
-* `Copy` kopioi tekstin leikepöydälle (`copy.js`): ensisijaisesti
+* Sivu on yksi 46 rem:n levyinen keskitetty palsta, jossa ovat ylhäältä alas
+  painikerivi, muokkauslomake (vain muokatessa), BibTeX-laatikko,
+  lähdeviitelaatikko ja kenttälaatikko. Painikerivillä `back` on vasemmassa
+  reunassa ja `copy`, `edit` ja `delete` oikeassa reunassa. Painikkeet pysyvät
+  laatikoiden reunojen sisäpuolella myös kapealla näytöllä (flexbox, rivitys
+  tarvittaessa).
+* BibTeX on `<pre>`-laatikossa. Sen alla on viite luettavassa muodossa kahdessa
+  erillisessä, samannäköisessä laatikossa (yhteinen luokka `reference-box`):
+  ensin lähdeluettelotyylinen viite (`#citation`, `citation.to_citation`, ks.
+  alla) ja sitten tyyppi, avain ja jokainen täytetty kenttä samassa
+  järjestyksessä kuin lomakkeessa (`#details`, `<dl>`). Kenttien nimet ovat
+  lomakkeen nimiä ilman sulkeissa olevaa selitystä
+  (`reference_types.SHORT_LABELS`), esim. `book title`. Kapealla näytöllä nimi
+  on arvon yläpuolella.
+* `copy` kopioi tekstin leikepöydälle (`copy.js`): ensisijaisesti
   `navigator.clipboard`, ja jos se ei ole käytettävissä (esim. sivu avattu
   muulla kuin localhost-osoitteella ilman HTTPS:ää), varamenetelmänä
   piilotettu tekstikenttä ja `document.execCommand("copy")`. Painikkeen teksti
-  vaihtuu hetkeksi muotoon `Copied`.
+  vaihtuu hetkeksi muotoon `copied`.
 * `back`: listauksen linkit vievät mukanaan nykyisen osoitteensa
-  (`?back=/references...`), joten myöhemmin lisättävä haku säilyy paluussa.
+  (`?back=/references?...`), joten paluu säilyttää haun.
   `get_back_url()` hyväksyy vain listaussivun osoitteet, jottei parametrilla voi
   ohjata muualle (open redirect).
 * Viite haetaan aina ehdolla `user_id = kirjautunut käyttäjä`. Toisen käyttäjän
   viite antaa saman 404-vastauksen kuin olematon, eikä paljasta viitteen
   olemassaoloa.
 * Yläpalkissa `view / search` on alleviivattu myös bibtex-sivulla.
+
+### Muokkaus (`/references/<id>/edit`)
+
+* `edit` avaa saman bibtex-sivun osoitteessa `/references/<id>/edit`: BibTeXin
+  yläpuolelle tulee muokkauslomake nykyisillä arvoilla, ja `edit`-painike on
+  täytetty mustaksi. Painikerivi pysyy lomakkeen yläpuolella.
+* Lomake käyttää samoja kenttiä kuin lisäyslomake (`reference_fields.html`,
+  `reference_form.js`) ja samaa validointia. Kentät ovat kahdessa sarakkeessa,
+  pitkät kentät (kirjoittaja, otsikko, julkaisu, avain) koko leveydellä.
+  Myös tyypin voi vaihtaa; tällöin vanhan tyypin kentät tyhjennetään
+  (`update_reference` asettaa jokaisen kenttäsarakkeen, puuttuvat `NULL`iksi).
+* Lomakkeen alla `save` ja `cancel`. `save` tallentaa ja ohjaa takaisin
+  bibtex-sivulle (lomake poissa, BibTeX päivittynyt). `cancel` on linkki samalle
+  sivulle, eli mitään ei tallenneta.
+* Avain: jos kenttä tyhjennetään, avain generoidaan uudelleen kirjoittajasta
+  ja vuodesta. Viitteen oma nykyinen avain ei tällöin ole "varattu"
+  (`get_cite_keys(..., exclude_id)`), joten `martin2008` ei muutu muotoon
+  `martin2008a`. Toisen oman viitteen avain hylätään kuten lisäyksessä.
+* Virhetilanteessa lomake pysyy auki annetuilla arvoilla, ja BibTeX sekä
+  viitteen tiedot näyttävät edelleen tallennetun version.
+* `back`-parametri kulkee mukana muokkauksen läpi, joten haku säilyy.
+
+### Poisto (`/references/<id>/delete`)
+
+* `delete` on oma POST-lomakkeensa CSRF-tunnisteella. Selain kysyy
+  varmistuksen (`confirm`), koska poistoa ei voi perua.
+* Poiston jälkeen ohjataan listaukseen (`back`-osoitteeseen) ja näytetään
+  ilmoitus `Reference <avain> deleted`.
+* Sekä muokkaus että poisto kohdistuvat aina ehdolla `user_id = kirjautunut
+  käyttäjä`; toisen käyttäjän viite antaa 404.
+* Muokkaus ja poisto eivät muuta tietokannan rakennetta, joten klusterin
+  tietokantaa ei tarvitse luoda uudelleen (ks. luku 11).
 
 ### BibTeX-muotoilu (`bibtex.to_bibtex`)
 
@@ -386,6 +435,28 @@ viime kädessä tietokannan rajoitteella.
 * Koska arvot kääritään aaltosulkeisiin, pariton `{` tai `}` rikkoisi tietueen.
   Siksi lisäyksen validointi hylkää kentät, joiden aaltosulkeet eivät täsmää.
 
+### Lähdeluettelomuoto (`citation.to_citation`)
+
+Bibtex-sivun lähdeviitelaatikon viite on APA:n kaltaisessa muodossa:
+
+| Tyyppi | Muoto |
+| --- | --- |
+| article | Kirjoittajat (vuosi). Otsikko. *Journal*, *volume*(number), sivut. DOI |
+| book | Kirjoittajat (vuosi). *Otsikko* (edition ed.). Address: Publisher. ISBN |
+| inproceedings | Kirjoittajat (vuosi). Otsikko. In *Booktitle* (pp. sivut). Publisher. DOI |
+
+* Valinnaiset kentät jätetään pois, jos ne ovat tyhjiä.
+* Kirjoittajat erotetaan `and`-sanan kohdalta ja yhdistetään muotoon
+  `A & B` tai `A, B, & C`. Nimet näytetään sellaisinaan, eikä etunimiä
+  lyhennetä.
+* Sivuvälin viiva muutetaan ajatusviivaksi (`12-34` → `12–34`), ja DOI:n eteen
+  lisätään `https://doi.org/`, ellei se jo ole osoite.
+* Pistettä ei lisätä, jos teksti päättyy jo pisteeseen, kysymys- tai
+  huutomerkkiin.
+* Funktio palauttaa valmiin HTML:n (`Markup`), jossa kursivointi on
+  `<i>`-elementteinä. Jokainen kentän arvo escapoidaan (`markupsafe.escape`),
+  joten käyttäjän syöttämä HTML näkyy tekstinä. LaTeX-merkintää ei muunneta.
+
 ## 9. Käyttöliittymä
 
 * **Yläpalkki** (vain kirjautuneelle, kaikilla sivuilla): vasemmalla `add` ja
@@ -394,12 +465,16 @@ viime kädessä tietokannan rajoitteella.
 * **Kirjautumis- ja rekisteröintisivu:** ei yläpalkkia, vain sovelluksen nimi
   lomakkeen yläpuolella. Kirjautumissivulla `register`-painike vie
   rekisteröintisivulle, jolta pääsee takaisin painikkeella `back to log in`.
-* Käyttöliittymän tekstit ovat englanniksi ja pääosin pienellä kirjoitettuja
-  (poikkeuksena bibtex-sivun `Copy`-painike).
+* Käyttöliittymän tekstit ovat englanniksi ja pienellä kirjoitettuja.
 * Virheilmoitukset ovat punaisia; onnistumisilmoitukset
   (`.flash.notice`) ovat tavallisen tekstin värisiä.
-* Listaus ja bibtex-sivun tekstilaatikko käyttävät samaa 46 rem:n keskitettyä
-  palstaa.
+* Listaus ja bibtex-sivu käyttävät samaa 46 rem:n keskitettyä palstaa;
+  bibtex-sivun painikkeet ovat palstan sisällä BibTeX-laatikon yläpuolella.
+* Yläpalkillisilla sivuilla (listaus, lisäys, bibtex-sivu) sisällön yläpuolella
+  on noin painikkeen korkeuden verran lisätilaa.
+* Advanced-haun kentät ovat kahdessa sarakkeessa samalla lomaketyylillä kuin
+  lisäyslomake; tyyppi valitaan samanlaisilla tekstivalinnoilla kuin
+  lisäyslomakkeessa.
 
 ## 10. Testaus ja CI
 
@@ -414,7 +489,9 @@ viime kädessä tietokannan rajoitteella.
 | `reference_validation_test.py` | Tyyppimäärittelyt, viitteen ja avaimen validointi, aaltosulkeiden täsmäys, sukunimen poiminta, avaimen generointi |
 | `reference_repository_test.py` | Viitteen tallennus ja luku, avaimen uniikkius ja generointi, käyttäjäkohtaisuus, erikoismerkit, viiteavainrajoite |
 | `bibtex_test.py` | BibTeX-muotoilu kaikille tyypeille, erikoismerkit, sivuvälit |
-| `references_test.py` | Listaus (sisältö, järjestys, vain omat viitteet, escapointi), bibtex-sivu (sisältö, painikkeet, 404 toisen käyttäjän viitteelle), back-osoitteen rajaus |
+| `citation_test.py` | Lähdeluettelomuoto kaikille tyypeille pakollisilla ja kaikilla kentillä, kirjoittajien yhdistäminen, pisteet, sivuvälit, escapointi |
+| `references_test.py` | Listaus (sisältö, järjestys, vain omat viitteet, escapointi), bibtex-sivu (sisältö, painikkeiden järjestys, lähdeviite- ja kenttälaatikko sekä niiden escapointi, 404 toisen käyttäjän viitteelle), back-osoitteen rajaus |
+| `edit_reference_test.py` | Bibtex-sivun edit- ja delete-painikkeet, muokkauslomake (nykyiset arvot, sijainti, back-osoitteen säilyminen), tallennus (kentät, tyypin vaihto, avaimen vaihto ja uudelleengenerointi, virhetilanteet), poisto, kirjautumis- ja CSRF-vaatimus, toisen käyttäjän viitteet |
 | `add_reference_test.py` | Lisäysreitti: lomake, kaikki kolme tyyppiä, virhetilanteet, arvojen säilyminen ja escapointi, kirjautumis- ja CSRF-vaatimus |
 | `search_test.py` | Hakusanojen pilkkominen, haku jokaisesta kentästä, kirjainkoko ja ääkköset, usea sana, erikoismerkit, vain omat viitteet, listaussivun hakulomake ja tulokset, paluu hakuun |
 | `advanced_search_test.py` | Hakuparametrien siivous ja validointi, jokainen suodatin erikseen ja yhdessä, ero perushakuun, erikoismerkit, vain omat viitteet, listaussivun advanced-osio (auki/kiinni, arvojen säilyminen), osoitteen siistiminen, virheelliset arvot, paluu hakuun |
@@ -438,10 +515,12 @@ generoitu avain, käytössä oleva avain, selaimen pakollisuus- ja
 vuosilukutarkistukset sekä se, etteivät piilotetut kentät estä lähetystä.
 
 `references.robot` testaa listauksen ja bibtex-sivun: tyhjä lista, järjestys,
-laatikon reunus, laatikon klikkaus, Copy-painike (leikepöydän sisältö luetaan
+laatikon reunus, laatikon klikkaus, copy-painike (leikepöydän sisältö luetaan
 selaimesta ja verrataan sivun BibTeXiin; selainkontekstille annetaan
-leikepöytäoikeudet), back- ja Copy-painikkeen sijainti samalla rivillä,
-back-painike ja se, ettei toisen käyttäjän viitettä näe.
+leikepöytäoikeudet), painikkeiden sijainti BibTeX-laatikon yläpuolella sen
+reunojen sisällä (myös 360 px leveällä näytöllä), lähdeviite- ja kenttälaatikko
+BibTeXin alla erillisinä ja samanlevyisinä sekä niiden sisältö, back-painike ja
+se, ettei toisen käyttäjän viitettä näe.
 
 `search.robot` testaa haun selaimessa: yksi hakukenttä listan yläpuolella,
 haku otsikolla, kirjoittajalla ja vuodella, kirjainkoko ja ääkköset,
@@ -452,6 +531,12 @@ bibtex-sivulta.
 hakukentän alla, kenttien avaaminen ja sulkeminen, haku jokaisella kentällä,
 ehtojen yhdistäminen, osion pysyminen auki haun jälkeen, virheellinen vuosi,
 `show all` ja paluu hakutulokseen bibtex-sivulta.
+
+`edit_reference.robot` testaa muokkauksen ja poiston selaimessa: lomakkeen
+avautuminen BibTeXin yläpuolelle nykyisillä arvoilla, painikkeet lomakkeen
+yläpuolella, save ja cancel, tyypin ja avaimen vaihto, virheellinen arvo,
+muutoksen näkyminen BibTeXissä, tiedoissa ja listassa, paluu hakuun
+sekä poisto varmistuksineen (hyväksytty ja peruttu).
 
 ### Skriptit
 
@@ -598,6 +683,17 @@ Keskeiset valinnat koottuna; yksityiskohdat ovat viitatuissa luvuissa.
 * Advanced-haussa journal, booktitle ja publisher on yhdistetty yhdeksi
   "published in" -kentäksi; harvinaisemmille kentille (volume, pages, doi, …)
   ei ole omaa hakukenttää, mutta perushaku kattaa ne.
+
+**Bibtex-sivu**
+
+* Muokkaus ja poisto tehdään bibtex-sivulta; poisto vaatii varmistuksen,
+  koska sitä ei voi perua.
+* Painikkeet ovat BibTeX-laatikon yläpuolella palstan sisällä eivätkä sen
+  sivuilla, joten sivu mahtuu kapeallekin näytölle samassa järjestyksessä.
+* BibTeXin alla näytetään viite myös luettavassa muodossa omissa laatikoissaan:
+  lähdeluettelotyylinen viite (APA:n kaltainen, yksi kiinteä tyyli) ja
+  kenttäluettelo. Tyylin valintaa ei ole, koska BibTeX on sovelluksen
+  varsinainen tuotos ja LaTeX muotoilee lähdeluettelon itse.
 
 **Ympäristö**
 

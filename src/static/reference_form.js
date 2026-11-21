@@ -1,4 +1,4 @@
-// Shows the fields of the chosen reference type in the form.
+// Shows the fields of the chosen reference type in the add and edit forms.
 // Hidden fields are disabled, so that they are not sent or required.
 (function () {
   const form = document.getElementById("reference-form");

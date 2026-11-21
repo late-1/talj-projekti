@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 from flask import abort, flash, jsonify, redirect, render_template, request, session
 
 import bibtex
+import citation
 import reference_types
 import util
 from config import app, test_env
@@ -176,20 +177,95 @@ def list_references():
     )
 
 
-@app.route("/references/<int:reference_id>")
-@login_required
-def show_reference(reference_id):
+def reference_url(reference_id, back, action=""):
+    """Address of a page of one reference; remembers the list the user came from"""
+    url = f"/references/{reference_id}{action}"
+    if back != "/references":
+        url += "?" + urlencode({"back": back})
+    return url
+
+
+def get_own_reference(reference_id):
     # other users' references look the same as missing ones
     reference = reference_repository.get_reference(session["user_id"], reference_id)
     if not reference:
         abort(404)
+    return reference
 
+
+def render_reference(reference, back, edit_form=None):
+    """
+    The BibTeX page: the BibTeX and below it the citation and the fields of the
+    reference. With edit_form, the edit form is shown above the BibTeX.
+    """
     return render_template(
         "show_reference.html",
         reference=reference,
         bibtex=bibtex.to_bibtex(reference),
-        back=get_back_url(request.args.get("back", "")),
+        citation=citation.to_citation(reference),
+        labels=reference_types.SHORT_LABELS,
+        back=back,
+        show_url=reference_url(reference.id, back),
+        edit_url=reference_url(reference.id, back, "/edit"),
+        delete_url=reference_url(reference.id, back, "/delete"),
+        editing=edit_form is not None,
+        **(edit_form or {}),
     )
+
+
+@app.route("/references/<int:reference_id>")
+@login_required
+def show_reference(reference_id):
+    reference = get_own_reference(reference_id)
+    return render_reference(reference, get_back_url(request.args.get("back", "")))
+
+
+@app.route("/references/<int:reference_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_reference(reference_id):
+    reference = get_own_reference(reference_id)
+    back = get_back_url(request.args.get("back", ""))
+
+    if request.method == "GET":
+        return render_reference(reference, back, {
+            "entry_type": reference.entry_type,
+            "values": reference.fields,
+            "cite_key": reference.cite_key,
+        })
+
+    check_csrf()
+
+    entry_type = request.form.get("entry_type", "")
+    cite_key = request.form.get("cite_key", "").strip()
+
+    try:
+        fields = util.validate_reference(entry_type, request.form)
+        if cite_key:
+            util.validate_cite_key(cite_key)
+        reference_repository.update_reference(
+            session["user_id"], reference_id, entry_type, fields, cite_key
+        )
+    except UserInputError as error:
+        flash(str(error))
+        if entry_type not in reference_types.ENTRY_TYPES:
+            entry_type = reference.entry_type
+        # the form stays open with the values the user gave
+        return render_reference(reference, back, {
+            "entry_type": entry_type, "values": request.form, "cite_key": cite_key,
+        })
+
+    return redirect(reference_url(reference_id, back))
+
+
+@app.route("/references/<int:reference_id>/delete", methods=["POST"])
+@login_required
+def delete_reference(reference_id):
+    check_csrf()
+    reference = get_own_reference(reference_id)
+    reference_repository.delete_reference(session["user_id"], reference_id)
+
+    flash(f"Reference {reference.cite_key} deleted", "notice")
+    return redirect(get_back_url(request.args.get("back", "")))
 
 
 # route for tests only
