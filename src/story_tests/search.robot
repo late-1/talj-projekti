@@ -38,7 +38,7 @@ Titles Should Be
 
 *** Test Cases ***
 List has one search field above the references
-    Get Element Count  .search-form input[type="text"]  ==  1
+    Get Element Count  .search-form input[type="text"] >> visible=true  ==  1
     Titles Should Be  Extreme Apprenticeship  Refactoring  Clean Code
     ${form}=  Get BoundingBox  .search-form
     ${card}=  Get BoundingBox  .reference-card >> nth=0

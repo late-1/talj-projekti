@@ -241,24 +241,55 @@ input[type="submit"]:hover,
 /* search */
 
 .search {
-  margin-bottom: 1.5rem;
+  /* the delete button is close to the list it deletes from */
+  margin-bottom: 0;
 }
 
 .search-form {
-  display: flex;
-  align-items: flex-end;
-  gap: 1rem;
+  /*
+   * the search field on the left; search, advanced and delete below each other
+   * on the right, all as wide as the widest of them. The fields of the
+   * advanced search open between advanced and delete over the whole width.
+   */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  column-gap: 1rem;
+  align-items: end;
+}
+
+.search-form #query {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+}
+
+/* the form only carries the selected references, the CSRF token and the list address */
+#delete-selected-form {
+  display: none;
+}
+
+.search-form #search,
+.search-form .advanced,
+.search-form #delete-selected {
+  grid-column: 2;
+  width: 100%;
+  text-align: center;
+}
+
+.search-form #search {
+  grid-row: 1;
 }
 
 /* advanced search */
 
 .advanced {
-  margin-top: 1rem;
+  grid-row: 2;
+  margin-top: 0.5rem;
 }
 
 .advanced summary {
   /* the summary looks like a button instead of a line with a triangle */
-  display: inline-block;
+  display: block;
   list-style: none;
   user-select: none;
 }
@@ -273,10 +304,38 @@ input[type="submit"]:hover,
 }
 
 .advanced-fields {
-  display: grid;
+  display: none;
+  grid-column: 1 / -1;
+  grid-row: 3;
   grid-template-columns: 1fr 1fr;
   gap: 0 2rem;
   margin-top: 1.5rem;
+}
+
+.search-form:has(.advanced[open]) .advanced-fields {
+  display: grid;
+}
+
+/* deleting the selected references; a bit further from advanced */
+
+.search-form #delete-selected,
+.search-form #select-all {
+  grid-row: 4;
+  margin-top: 2.5rem;
+}
+
+/* select all / unselect is on the left of delete */
+.search-form #select-all {
+  grid-column: 1;
+  justify-self: end;
+}
+
+.button:disabled,
+.button:disabled:hover {
+  color: var(--muted);
+  border-color: var(--line);
+  background: transparent;
+  cursor: default;
 }
 
 .advanced-fields .years {
@@ -289,9 +348,6 @@ input[type="submit"]:hover,
   margin-bottom: 0.5rem;
 }
 
-.search-form input[type="text"] {
-  flex: 1;
-}
 
 .hidden-label {
   position: absolute;
@@ -299,6 +355,41 @@ input[type="submit"]:hover,
   height: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+}
+
+.reference-item {
+  /* the checkbox is on top of the box of the reference, in its lower right corner */
+  position: relative;
+}
+
+.reference-select {
+  position: absolute;
+  /* about the width of one space from the line of the box */
+  right: calc(1px + 0.3em);
+  bottom: calc(1px + 0.3em);
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--background);
+  cursor: pointer;
+}
+
+.reference-select:checked {
+  /* a cross from corner to corner, drawn with the same line as the box */
+  background-image:
+    linear-gradient(to top right, transparent calc(50% - 0.5px), var(--line) calc(50% - 0.5px),
+      var(--line) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+    linear-gradient(to bottom right, transparent calc(50% - 0.5px), var(--line) calc(50% - 0.5px),
+      var(--line) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+}
+
+.reference-select:focus-visible {
+  outline: 1px solid var(--text);
+  outline-offset: 1px;
 }
 
 .reference-card {
@@ -467,6 +558,8 @@ input[type="submit"]:hover,
 
   .reference-card {
     grid-template-columns: 1fr;
+    /* the text does not go under the checkbox */
+    padding-right: 3.5rem;
   }
 
   .reference-card .reference-meta {

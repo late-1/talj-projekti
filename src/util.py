@@ -15,6 +15,7 @@ LONG_FIELD_MAX_LENGTH = 1000
 CITE_KEY_MAX_LENGTH = 50
 SEARCH_MAX_LENGTH = 200
 SEARCH_MAX_WORDS = 20
+SELECTED_MAX = 500
 
 YEAR_PATTERN = re.compile(r"[0-9]{4}")
 CITE_KEY_PATTERN = re.compile(r"[A-Za-z0-9_:.+/-]+")
@@ -104,6 +105,18 @@ def search_filters(params):
             errors.append("Unknown reference type")
 
     return filters, errors
+
+
+def selected_ids(values):
+    """
+    The ids of the references selected on the list: whole positive numbers
+    only, each once, at most SELECTED_MAX. Other values are dropped.
+    """
+    ids = []
+    for value in values:
+        if value.isascii() and value.isdecimal() and int(value) > 0 and int(value) not in ids:
+            ids.append(int(value))
+    return ids[:SELECTED_MAX]
 
 
 def field_max_length(name):

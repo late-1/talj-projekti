@@ -46,7 +46,8 @@ src/
   schema.sql                 tietokannan taulut
   util.py                    syötteiden validointi, viiteavaimen muodostus,
                              hakusanojen pilkkominen, hakuehtojen siivous
-                             ja tarkistus, UserInputError
+                             ja tarkistus, valittujen viitteiden tunnisteet,
+                             UserInputError
   reference_types.py         viitetyypit ja niiden kentät (yksi totuuden lähde)
   bibtex.py                  viitteen muotoilu BibTeX-muotoon
   citation.py                viitteen muotoilu lähdeluettelon muotoon
@@ -61,12 +62,14 @@ src/
     login.html, register.html
     add_reference.html       viitteen lisäyslomake
     reference_fields.html    viitteen kentät (lisäys- ja muokkauslomakkeen yhteinen osa)
-    references.html          viitelistaus
+    references.html          viitelistaus, haku ja valittujen viitteiden poisto
     show_reference.html      bibtex-sivu (painikkeet, BibTeX, lähdeviite, kentät)
                              ja muokkauslomake
   static/main.css            tyylit
   static/reference_form.js   lomakkeen kenttien vaihto viitetyypin mukaan
   static/copy.js             copy-painike (leikepöytä)
+  static/select.js           listan valintaruudut: select all / unselect,
+                             delete-painikkeen tila ja varmistus
   tests/                     pytest-testit
   story_tests/               Robot Framework -testit
   instance/                  SQLite-tiedostot (ei versionhallinnassa)
@@ -177,6 +180,7 @@ tietokanta alustetaan käsin, ks. luku 11.
 | `/references/<id>/edit` | GET | vaaditaan | Bibtex-sivu, jossa muokkauslomake on auki BibTeXin yläpuolella |
 | `/references/<id>/edit` | POST | vaaditaan + CSRF | Validoi ja tallentaa muutokset, ohjaa `/references/<id>` |
 | `/references/<id>/delete` | POST | vaaditaan + CSRF | Poistaa viitteen, ohjaa listaukseen (`back`-osoitteeseen) |
+| `/references/delete` | POST | vaaditaan + CSRF | Poistaa listalla valitut viitteet (`reference_id`, useita), ohjaa listaukseen (`back`) |
 | `/reset_db` | GET | – | Vain testitilassa: tyhjentää tietokannan ja istunnon |
 
 Epäonnistunut kirjautuminen tai rekisteröinti näyttää saman lomakkeen uudelleen
@@ -199,10 +203,10 @@ virheilmoituksen kanssa, ja käyttäjätunnus säilyy kentässä.
 * `@login_required` tarkistaa myös, että istunnon käyttäjä on yhä tietokannassa;
   jos ei ole (esim. tietokanta on luotu uudelleen), istunto tyhjennetään.
 * **CSRF:** jokainen istunto saa satunnaisen tunnisteen, joka on piilokenttänä
-  kirjautuneen käyttäjän POST-lomakkeissa (lisäys, muokkaus ja poisto) ja
-  tarkistetaan funktiolla `check_csrf()` (virheellinen tai puuttuva → 403).
-  Kirjautumis- ja rekisteröintilomakkeissa tunnistetta ei ole (istuntoa ei
-  vielä ole).
+  kirjautuneen käyttäjän POST-lomakkeissa (lisäys, muokkaus, poisto ja
+  valittujen viitteiden poisto) ja tarkistetaan funktiolla `check_csrf()`
+  (virheellinen tai puuttuva → 403). Kirjautumis- ja rekisteröintilomakkeissa
+  tunnistetta ei ole (istuntoa ei vielä ole).
 * **Uloskirjautuminen** on tavallinen linkki (`GET /logout`). Haittana on, että
   ulkopuolinen sivu voi kirjata käyttäjän ulos linkillä; tämä on hyväksytty
   yksinkertaisuuden vuoksi.
@@ -309,10 +313,15 @@ viime kädessä tietokannan rajoitteella.
 
 ### Haku (advanced)
 
-* Hakukentän alapuolella on painike `advanced`, joka avaa ja sulkee
-  lisäkentät. Se on HTML:n `<details>`/`<summary>`-elementti painikkeen
-  näköiseksi tyyliteltynä, joten se toimii ilman JavaScriptiä. Auki ollessaan
-  painike on täytetty (musta).
+* Hakukentän oikealla puolella ovat allekkain samanlevyiset painikkeet
+  `search`, `advanced` ja `delete` (ks. Valittujen viitteiden poisto).
+  `advanced` avaa ja sulkee lisäkentät. Se on HTML:n
+  `<details>`/`<summary>`-elementti painikkeen näköiseksi tyyliteltynä, joten se
+  toimii ilman JavaScriptiä. Auki ollessaan painike on täytetty (musta).
+* Lisäkentät eivät ole `<details>`-elementin sisällä vaan sen jälkeen omana
+  elementtinään (`#advanced-fields`), jotta ne voivat aueta koko leveydelle
+  `advanced`- ja `delete`-painikkeen väliin. CSS näyttää ne, kun `details` on
+  auki (`.search-form:has(.advanced[open])`).
 * Kentät ja niiden osoiteparametrit:
 
   | Kenttä | Parametri | Kohdistuu | Ehto |
@@ -411,6 +420,38 @@ viime kädessä tietokannan rajoitteella.
 * Muokkaus ja poisto eivät muuta tietokannan rakennetta, joten klusterin
   tietokantaa ei tarvitse luoda uudelleen (ks. luku 11).
 
+### Valittujen viitteiden poisto (`/references/delete`)
+
+* Jokaisen viitelaatikon oikeassa alakulmassa on valintaruutu. Ruudun viiva on
+  sama kuin laatikon, ja se on noin välilyönnin levyisen marginaalin päässä
+  laatikon reunasta. Valittuna ruudussa on kulmasta kulmaan ulottuva rasti,
+  joka piirretään samalla viivalla (CSS-gradientit, `appearance: none`).
+* Viitelaatikko on kokonaan linkki, eikä linkin sisällä saa olla lomakekenttiä.
+  Siksi valintaruutu on linkin vieressä yhteisessä `.reference-item`-elementissä
+  ja asemoitu laatikon päälle. Ruudun klikkaus vain valitsee viitteen.
+* Hakupainikkeiden alla on `delete`, joka poistaa kaikki valitut viitteet. Se
+  on oma POST-lomakkeensa (`#delete-selected-form`, CSRF-tunniste ja nykyinen
+  listan osoite `back`). Valintaruudut ja painike ovat lomakkeen ulkopuolella
+  ja liitetään siihen HTML:n `form`-attribuutilla.
+* `select.js` pitää painikkeen harmaana ja poissa käytöstä, kun yhtään viitettä
+  ei ole valittu, ja kysyy varmistuksen (`Delete 2 references?`). Ilman
+  JavaScriptiä painike pysyy poissa käytöstä.
+* `delete`-painikkeen vasemmalla puolella on `select all`, joka valitsee kaikki
+  listalla näkyvät viitteet (haun tulokset). Kun kaikki on valittu, painikkeen
+  teksti on `unselect`, ja se poistaa kaikki valinnat. Painike toimii
+  `select.js`:llä eikä lähetä lomaketta (`type="button"`). Se on poissa
+  käytöstä, kun haku ei löytänyt yhtään viitettä.
+* Palvelin hyväksyy vain positiiviset kokonaislukutunnisteet, kunkin kerran ja
+  enintään 500 (`util.selected_ids`), ja poistaa ne yhdellä kyselyllä ehdolla
+  `user_id = kirjautunut käyttäjä` (`reference_repository.delete_references`).
+  Toisen käyttäjän viitteiden tunnisteet ohitetaan.
+* Poiston jälkeen palataan samaan listaan hakuineen ja näytetään
+  `2 references deleted`. Jos mitään ei valittu, näytetään `No references
+  selected`, ja jos mikään valituista ei ollut käyttäjän, `No references
+  deleted`.
+* Tietokannan rakenne ei muutu, joten klusterin tietokantaa ei tarvitse luoda
+  uudelleen (ks. luku 11).
+
 ### BibTeX-muotoilu (`bibtex.to_bibtex`)
 
 ```
@@ -495,6 +536,7 @@ Bibtex-sivun lähdeviitelaatikon viite on APA:n kaltaisessa muodossa:
 | `add_reference_test.py` | Lisäysreitti: lomake, kaikki kolme tyyppiä, virhetilanteet, arvojen säilyminen ja escapointi, kirjautumis- ja CSRF-vaatimus |
 | `search_test.py` | Hakusanojen pilkkominen, haku jokaisesta kentästä, kirjainkoko ja ääkköset, usea sana, erikoismerkit, vain omat viitteet, listaussivun hakulomake ja tulokset, paluu hakuun |
 | `advanced_search_test.py` | Hakuparametrien siivous ja validointi, jokainen suodatin erikseen ja yhdessä, ero perushakuun, erikoismerkit, vain omat viitteet, listaussivun advanced-osio (auki/kiinni, arvojen säilyminen), osoitteen siistiminen, virheelliset arvot, paluu hakuun |
+| `delete_selected_test.py` | Valittujen viitteiden tunnisteiden siivous, listan delete- ja select all -painike, lomake ja valintaruudut, poisto (yksi, useita, kaikki), ilmoitukset, paluu hakuun, back-osoitteen rajaus, ei valintoja, tuntemattomat tunnisteet, CSRF, kirjautuminen, toisen käyttäjän viitteet, repositorio |
 
 `conftest.py` asettaa `DATABASE_URL`:n väliaikaistiedostoon ennen sovelluksen
 importtaamista, joten testit eivät koske kehitystietokantaan. Jokainen testi
@@ -537,6 +579,15 @@ avautuminen BibTeXin yläpuolelle nykyisillä arvoilla, painikkeet lomakkeen
 yläpuolella, save ja cancel, tyypin ja avaimen vaihto, virheellinen arvo,
 muutoksen näkyminen BibTeXissä, tiedoissa ja listassa, paluu hakuun
 sekä poisto varmistuksineen (hyväksytty ja peruttu).
+
+`delete_selected.robot` testaa valittujen viitteiden poiston selaimessa:
+`search`, `advanced` ja `delete` samanlevyisinä allekkain ja niiden välit,
+`delete` advanced-kenttien alapuolella, harmaa painike ilman valintoja,
+valintaruudun paikka laatikon oikeassa alakulmassa ja sen viiva, rasti
+valittuna, se ettei valinta avaa viitettä, poisto varmistuksineen
+(hyväksytty ja peruttu) ja paluu hakuun sekä `select all` / `unselect`
+(sijainti, kaikkien valinta ja valintojen poisto, tekstin vaihtuminen käsin
+valittaessa, vain hakutulokset, poissa käytöstä ilman tuloksia).
 
 ### Skriptit
 
@@ -683,6 +734,12 @@ Keskeiset valinnat koottuna; yksityiskohdat ovat viitatuissa luvuissa.
 * Advanced-haussa journal, booktitle ja publisher on yhdistetty yhdeksi
   "published in" -kentäksi; harvinaisemmille kentille (volume, pages, doi, …)
   ei ole omaa hakukenttää, mutta perushaku kattaa ne.
+
+* Useamman viitteen poisto tehdään listalta valintaruuduilla ja yhdellä
+  `delete`-painikkeella, joka on hakupainikkeiden alla. `select all` valitsee
+  kerralla kaikki listalla näkyvät viitteet, eli hakua voi käyttää poistettavien
+  rajaamiseen. Poisto vaatii varmistuksen, ja se kohdistuu vain käyttäjän
+  omiin viitteisiin.
 
 **Bibtex-sivu**
 

@@ -1,4 +1,4 @@
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from sqlalchemy.exc import IntegrityError
 
 from config import db
@@ -124,6 +124,18 @@ def delete_reference(user_id, reference_id):
     result = db.session.execute(sql, {"id": reference_id, "user_id": user_id})
     db.session.commit()
     return result.rowcount > 0
+
+
+def delete_references(user_id, reference_ids):
+    """Deletes the given references of the user. Returns how many were deleted."""
+    if not reference_ids:
+        return 0
+    sql = text(
+        "DELETE FROM bib_references WHERE user_id = :user_id AND id IN :ids"
+    ).bindparams(bindparam("ids", expanding=True))
+    result = db.session.execute(sql, {"user_id": user_id, "ids": list(reference_ids)})
+    db.session.commit()
+    return result.rowcount
 
 
 def get_references(user_id, query="", filters=None):

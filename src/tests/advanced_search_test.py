@@ -232,7 +232,7 @@ def test_advanced_part_is_below_the_search_field(client, logged_in):
 
 def test_advanced_part_has_fields(client, logged_in):
     page = page_of(client, "/references")
-    advanced = page[page.index("<details"):page.index("</details>")]
+    advanced = page[page.index('id="advanced-fields"'):page.index('id="delete-selected"')]
     for name in ["author", "title", "venue", "key", "year_from", "year_to"]:
         assert f'<input type="text" name="{name}"' in advanced
     for value in ["", "article", "book", "inproceedings"]:
@@ -241,8 +241,8 @@ def test_advanced_part_has_fields(client, logged_in):
         )
     assert '<input type="radio" name="type" id="type-any" value="" checked />' in advanced
     # everything is in the same form with the basic search field
-    assert page.count("<form") == 1
-    positions = [page.index(tag) for tag in ["<form", "<details", "</details>", "</form>"]]
+    tags = ["<form", "<details", 'id="advanced-fields"', "</form>"]
+    positions = [page.index(tag) for tag in tags]
     assert positions == sorted(positions)
 
 

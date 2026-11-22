@@ -59,9 +59,7 @@ Added references are listed newest first
     Get Text  .reference-card >> nth=0  *=  Clean Architecture
     Get Text  .reference-card >> nth=0  *=  Martin, Robert (2017)
     Get Text  .reference-card >> nth=0  *=  Journal of Software
-    Get Text  .reference-card >> nth=0  *=  martin2017
     Get Text  .reference-card >> nth=1  *=  Clean Code
-    Get Text  .reference-card >> nth=1  *=  martin2008
 
 Each reference is in a box with a thin border
     Add Article

@@ -268,6 +268,26 @@ def delete_reference(reference_id):
     return redirect(get_back_url(request.args.get("back", "")))
 
 
+@app.route("/references/delete", methods=["POST"])
+@login_required
+def delete_selected_references():
+    """Deletes the references selected on the list and returns to the same list"""
+    check_csrf()
+    back = get_back_url(request.form.get("back", ""))
+
+    ids = util.selected_ids(request.form.getlist("reference_id"))
+    if not ids:
+        flash("No references selected")
+        return redirect(back)
+
+    count = reference_repository.delete_references(session["user_id"], ids)
+    if count == 0:
+        flash("No references deleted")
+    else:
+        flash(f"{count} {'reference' if count == 1 else 'references'} deleted", "notice")
+    return redirect(back)
+
+
 # route for tests only
 if test_env:
     @app.route("/reset_db")

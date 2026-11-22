@@ -47,10 +47,10 @@ def test_list_shows_references(client, actions, logged_in):
     assert "No references yet" not in page
 
     for expected in [
-        "Clean Code", "Martin, Robert (2008)", "Journal of Software", "martin2008", "article",
-        "Refactoring", "Fowler, Martin (1999)", "Addison-Wesley", "fowler1999", "book",
+        "Clean Code", "Martin, Robert (2008)", "Journal of Software", "article",
+        "Refactoring", "Fowler, Martin (1999)", "Addison-Wesley", "book",
         "Extreme Apprenticeship Method", "Vihavainen, Arto and Luukkainen, Matti (2011)",
-        "SIGCSE &#39;11", "vihavainen2011", "inproceedings",
+        "SIGCSE &#39;11", "inproceedings",
     ]:
         assert expected in page
 

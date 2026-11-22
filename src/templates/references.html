@@ -10,12 +10,14 @@
       <label for="query" class="hidden-label">Search references</label>
       <input type="text" name="query" id="query" value="{{ search.query }}" maxlength="{{ limits.SEARCH_MAX_LENGTH }}"
              placeholder="search by author, title, year or anything else" />
-      <input type="submit" value="search" />
-    </div>
+      <input type="submit" value="search" id="search" />
 
-    <details class="advanced" id="advanced" {% if advanced_open %}open{% endif %}>
-      <summary class="button">advanced</summary>
-      <div class="advanced-fields form">
+      {# the summary is the advanced button; the fields are shown while it is open #}
+      <details class="advanced" id="advanced" {% if advanced_open %}open{% endif %}>
+        <summary class="button">advanced</summary>
+      </details>
+
+      <div class="advanced-fields form" id="advanced-fields">
         <p>
           <label for="author">author</label>
           <input type="text" name="author" id="author" value="{{ search.author }}" maxlength="{{ limits.SEARCH_MAX_LENGTH }}" />
@@ -58,7 +60,17 @@
           {% endfor %}
         </fieldset>
       </div>
-    </details>
+
+      {# select.js selects or unselects every reference on the list #}
+      <button type="button" class="button" id="select-all">select all</button>
+      {# belongs to the form below; enabled by select.js when a reference is selected #}
+      <button type="submit" class="button" id="delete-selected" form="delete-selected-form" disabled>delete</button>
+    </div>
+  </form>
+
+  <form action="/references/delete" method="post" id="delete-selected-form">
+    <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}" />
+    <input type="hidden" name="back" value="{{ request.full_path }}" />
   </form>
 
   {% if references %}
@@ -71,20 +83,24 @@
     {%- endif -%}
   </p>
   {% for reference in references %}
+  <div class="reference-item">
   <a href="/references/{{ reference.id }}?back={{ request.full_path | urlencode }}" class="reference-card">
     <span class="reference-title">{{ reference.title }}</span>
     <span class="reference-authors">{{ reference.author }} ({{ reference.year }})</span>
     <span class="reference-venue muted">{{ reference.venue }}</span>
     <span class="reference-meta muted">
       <span class="reference-type">{{ reference.entry_type }}</span>
-      <span class="reference-key">{{ reference.cite_key }}</span>
     </span>
   </a>
+  <input type="checkbox" class="reference-select" name="reference_id" value="{{ reference.id }}"
+         id="select-{{ reference.id }}" form="delete-selected-form" aria-label="select {{ reference.title }}" />
+  </div>
   {% endfor %}
   {% else %}
   <p class="no-results">No references found. <a href="/references" id="clear-search">show all</a></p>
   {% endif %}
 </div>
+<script src="/static/select.js"></script>
 {% else %}
 <p class="empty">No references yet. <a href="/add">Add the first one.</a></p>
 {% endif %}

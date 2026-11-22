@@ -26,6 +26,9 @@ Nykyiset ominaisuudet:
 * tarkennettu haku `advanced`-painikkeen takana: kirjoittaja, otsikko,
   julkaisupaikka, avain, vuosiväli ja viitteen tyyppi
 * viitteen muokkaaminen ja poistaminen sen BibTeX-sivulta (`edit` ja `delete`)
+* useamman viitteen poistaminen kerralla: viitteet valitaan listalta
+  valintaruuduilla (tai kaikki kerralla `select all` -painikkeella) ja
+  poistetaan `delete`-painikkeella
 * BibTeX-sivulla BibTeXin alla viitteen tiedot luettavassa muodossa:
   lähdeluettelotyylinen viite ja kaikki täytetyt kentät
 
