@@ -538,6 +538,37 @@ input[type="submit"]:hover,
   margin: 0;
 }
 
+/* the dialog about an existing identical reference */
+
+.dialog {
+  max-width: 26rem;
+  padding: 1.5rem 1.75rem;
+  border: 1px solid var(--text);
+  color: var(--text);
+  background: var(--background);
+}
+
+.dialog:focus {
+  outline: none;
+}
+
+.dialog::backdrop {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.dialog p {
+  margin: 0 0 1.5rem 0;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.dialog-actions form {
+  margin: 0;
+}
+
 /* narrow pages: login, register, add reference */
 
 .narrow {

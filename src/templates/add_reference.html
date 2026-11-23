@@ -12,5 +12,8 @@
     <input type="submit" value="add reference" />
   </form>
 </div>
+{% if duplicate %}
+{% with action="add" %}{% include "duplicate_dialog.html" %}{% endwith %}
+{% endif %}
 <script src="/static/reference_form.js"></script>
 {% endblock %}

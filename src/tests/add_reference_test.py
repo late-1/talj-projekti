@@ -120,8 +120,9 @@ def test_add_with_own_key(client, actions, logged_in):
 
 
 def test_generated_key_gets_a_letter_when_in_use(client, actions, logged_in):
-    for _ in range(3):
-        actions.add_reference()
+    # the same author and year, so the same key; different titles, so not duplicates
+    for number in range(3):
+        actions.add_reference(title=f"Clean Code {number}")
     keys = [reference.cite_key for reference in own_references(actions)]
     assert keys == ["martin2008b", "martin2008a", "martin2008"]
 

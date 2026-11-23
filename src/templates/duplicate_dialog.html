@@ -1,0 +1,19 @@
+{#
+  Asks whether to store a reference that has the same content as an existing one.
+  Variables: duplicate (the existing reference) and action ("add" or "save").
+  The action button sends the reference form again with confirm_duplicate=yes;
+  cancel (or Esc) only closes the dialog and leaves the form as it is.
+#}
+<dialog class="dialog" id="duplicate-dialog" aria-labelledby="duplicate-message" tabindex="-1" open>
+  <p id="duplicate-message">
+    The same reference already exists ({{ duplicate.cite_key }}). {{ action | capitalize }} it anyway?
+  </p>
+  <div class="dialog-actions">
+    <button type="submit" class="button" id="duplicate-confirm" form="reference-form"
+            name="confirm_duplicate" value="yes">{{ action }}</button>
+    <form method="dialog">
+      <button type="submit" class="button" id="duplicate-cancel">cancel</button>
+    </form>
+  </div>
+</dialog>
+<script src="/static/dialog.js"></script>

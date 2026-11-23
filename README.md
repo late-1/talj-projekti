@@ -30,6 +30,8 @@ Nykyiset ominaisuudet:
   valintaruuduilla (tai kaikki kerralla `select all` -painikkeella) ja
   poistetaan `delete`-painikkeella
 * .bib-tiedoston luominen valituista viitteistä (`create .bib`)
+* jos täsmälleen sama viite on jo olemassa, sen lisääminen tai tallentaminen
+  varmistetaan ensin
 * BibTeX-sivulla BibTeXin alla viitteen tiedot luettavassa muodossa:
   lähdeluettelotyylinen viite ja kaikki täytetyt kentät
 

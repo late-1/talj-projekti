@@ -44,6 +44,9 @@
     {% endfor %}
   </dl>
 </div>
+{% if duplicate %}
+{% with action="save" %}{% include "duplicate_dialog.html" %}{% endwith %}
+{% endif %}
 <script src="/static/copy.js"></script>
 {% if editing %}
 <script src="/static/reference_form.js"></script>

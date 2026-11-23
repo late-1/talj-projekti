@@ -115,6 +115,18 @@ def logout():
     return redirect("/login")
 
 
+def find_unconfirmed_duplicate(entry_type, fields, exclude_id=None):
+    """
+    An existing reference with the same content, unless the user has already
+    answered add (or save) in the dialog about it
+    """
+    if request.form.get("confirm_duplicate") == "yes":
+        return None
+    return reference_repository.find_duplicate(
+        session["user_id"], entry_type, fields, exclude_id
+    )
+
+
 @app.route("/add", methods=["GET", "POST"])
 @login_required
 def add_reference():
@@ -135,6 +147,13 @@ def add_reference():
         fields = util.validate_reference(entry_type, request.form)
         if cite_key:
             util.validate_cite_key(cite_key)
+        duplicate = find_unconfirmed_duplicate(entry_type, fields)
+        if duplicate:
+            # the form is shown again with a dialog that asks whether to add it anyway
+            return render_template(
+                "add_reference.html", entry_type=entry_type, values=request.form,
+                cite_key=cite_key, duplicate=duplicate,
+            )
         reference = reference_repository.create_reference(
             session["user_id"], entry_type, fields, cite_key
         )
@@ -244,6 +263,12 @@ def edit_reference(reference_id):
         fields = util.validate_reference(entry_type, request.form)
         if cite_key:
             util.validate_cite_key(cite_key)
+        duplicate = find_unconfirmed_duplicate(entry_type, fields, exclude_id=reference_id)
+        if duplicate:
+            return render_reference(reference, back, {
+                "entry_type": entry_type, "values": request.form, "cite_key": cite_key,
+                "duplicate": duplicate,
+            })
         reference_repository.update_reference(
             session["user_id"], reference_id, entry_type, fields, cite_key
         )

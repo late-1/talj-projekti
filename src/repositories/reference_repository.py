@@ -80,6 +80,29 @@ def create_reference(user_id, entry_type, fields, cite_key=None):
     return Reference(result.lastrowid, user_id, entry_type, cite_key, fields)
 
 
+def find_duplicate(user_id, entry_type, fields, exclude_id=None):
+    """
+    Returns a reference of the user with the same type and exactly the same
+    fields (the key does not matter), or None. With exclude_id, that reference
+    (the one being edited) is not counted.
+    """
+    # IS compares also empty (NULL) fields as equal
+    conditions = ["user_id = :user_id", "entry_type = :entry_type"]
+    conditions += [f"{name} IS :{name}" for name in FIELDS]
+    params = {name: fields.get(name) for name in FIELDS}
+    params.update({"user_id": user_id, "entry_type": entry_type})
+    if exclude_id is not None:
+        conditions.append("id != :exclude_id")
+        params["exclude_id"] = exclude_id
+
+    sql = text(
+        f"SELECT {', '.join(COLUMNS)} FROM bib_references "
+        f"WHERE {' AND '.join(conditions)} ORDER BY id LIMIT 1"
+    )
+    row = db.session.execute(sql, params).fetchone()
+    return _to_reference(row) if row else None
+
+
 def update_reference(user_id, reference_id, entry_type, fields, cite_key=None):
     """
     Replaces the content of a reference of the user with validated values.

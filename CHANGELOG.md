@@ -1,5 +1,19 @@
 # Muutosloki
 
+## 1.2.0 - 2026-11-23
+
+### Ominaisuudet
+
+- Vahvistusikkuna, kun lisättävä viite on sama kuin jo olemassa oleva viite
+  (sama tyyppi ja samat kentät avaimesta riippumatta)
+- Sama vahvistus viitettä muokattaessa, jos muutettu viite on sama kuin jokin
+  toinen viite
+
+### Laadunvarmistus
+
+- Yksikkö- ja Robot Framework -testit saman viitteen tunnistukselle ja
+  vahvistusikkunalle
+
 ## 1.1.0 - 2026-11-23
 
 ### Ominaisuudet

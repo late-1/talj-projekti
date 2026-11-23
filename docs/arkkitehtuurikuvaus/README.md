@@ -67,9 +67,11 @@ src/
     references.html          viitelistaus, haku, valittujen viitteiden poisto ja .bib-tiedosto
     show_reference.html      bibtex-sivu (painikkeet, BibTeX, lähdeviite, kentät)
                              ja muokkauslomake
+    duplicate_dialog.html    vahvistusikkuna saman viitteen lisäämiselle tai tallentamiselle
   static/main.css            tyylit
   static/reference_form.js   lomakkeen kenttien vaihto viitetyypin mukaan
   static/copy.js             copy-painike (leikepöytä)
+  static/dialog.js           saman viitteen vahvistusikkunan avaus
   static/select.js           listan valintaruudut: select all / unselect,
                              create .bib- ja delete-painikkeen tila, varmistus
   tests/                     pytest-testit
@@ -278,6 +280,30 @@ viime kädessä tietokannan rajoitteella.
   <avain>` ja tyhjä lomake samalla tyypillä (helpottaa usean viitteen lisäämistä).
 * Virhetilanteessa lomake näytetään uudelleen virheilmoituksen ja syötettyjen
   arvojen kanssa.
+* Jos käyttäjällä on jo samanlainen viite, se kysytään ennen tallennusta (ks.
+  Saman viitteen tunnistus).
+
+### Saman viitteen tunnistus
+
+* Viite on sama, jos sen tyyppi ja kaikki kentät ovat täsmälleen samat kuin
+  jollakin käyttäjän omalla viitteellä. Avainta ei verrata, koska kahdella
+  viitteellä ei voi olla samaa avainta. Tyhjät kentät (`NULL`) lasketaan
+  samoiksi (`reference_repository.find_duplicate`, SQL:n `IS`-vertailu).
+* Tarkistus tehdään validoinnin jälkeen sekä lisäyksessä että muokkauksessa;
+  muokattavaa viitettä itseään ei lasketa (`exclude_id`).
+* Jos sama viite löytyy, mitään ei tallenneta. Lomake näytetään uudelleen
+  annetuilla arvoilla, ja sen päälle aukeaa ikkuna (`duplicate_dialog.html`,
+  HTML:n `<dialog>`): `The same reference already exists (<avain>). Add it
+  anyway?` (muokatessa `Save it anyway?`) ja painikkeet `add`/`save` ja
+  `cancel`.
+* `add`/`save` lähettää viitelomakkeen uudelleen kentällä
+  `confirm_duplicate=yes`, jolloin tarkistus ohitetaan ja viite tallennetaan
+  tavalliseen tapaan (uusi avain saa tarvittaessa kirjaimen, esim.
+  `martin2008a`). `cancel` ja Esc sulkevat ikkunan, ja lomake jää täytetyksi.
+* `dialog.js` avaa ikkunan modaalisena (`showModal`), joten taustalla olevaa
+  sivua ei voi käyttää ennen valintaa. Ilman JavaScriptiä ikkuna näkyy silti,
+  koska se renderöidään auki.
+* Tietokannan rakenne ei muutu, joten klusterilla ei tarvita toimenpiteitä.
 
 ### Listaus (`/references`)
 
@@ -410,6 +436,8 @@ viime kädessä tietokannan rajoitteella.
   `martin2008a`. Toisen oman viitteen avain hylätään kuten lisäyksessä.
 * Virhetilanteessa lomake pysyy auki annetuilla arvoilla, ja BibTeX sekä
   viitteen tiedot näyttävät edelleen tallennetun version.
+* Jos muutettu viite on sama kuin jokin toinen käyttäjän viite, tallennus
+  kysytään ensin (ks. Saman viitteen tunnistus).
 * `back`-parametri kulkee mukana muokkauksen läpi, joten haku säilyy.
 
 ### Poisto (`/references/<id>/delete`)
@@ -558,6 +586,7 @@ Bibtex-sivun lähdeviitelaatikon viite on APA:n kaltaisessa muodossa:
 | `search_test.py` | Hakusanojen pilkkominen, haku jokaisesta kentästä, kirjainkoko ja ääkköset, usea sana, erikoismerkit, vain omat viitteet, listaussivun hakulomake ja tulokset, paluu hakuun |
 | `advanced_search_test.py` | Hakuparametrien siivous ja validointi, jokainen suodatin erikseen ja yhdessä, ero perushakuun, erikoismerkit, vain omat viitteet, listaussivun advanced-osio (auki/kiinni, arvojen säilyminen), osoitteen siistiminen, virheelliset arvot, paluu hakuun |
 | `bib_file_test.py` | .bib-tiedosto valituista viitteistä: painike listalla, tiedoston sisältö ja järjestys, lataus (`Content-Disposition`), erikoismerkit, ei muutoksia, ei valintoja, vain omat viitteet, CSRF, kirjautuminen, repositorio |
+| `duplicate_test.py` | Saman viitteen tunnistus (sama tyyppi ja kentät, avaimesta riippumatta; yksi kenttä, tyyppi tai käyttäjä eri; muokattava viite ohitetaan), vahvistusikkuna lisäyksessä ja muokkauksessa, mitään ei tallenneta ennen vahvistusta, arvojen säilyminen, `confirm_duplicate`, ei ikkunaa tavallisesti |
 | `delete_selected_test.py` | Valittujen viitteiden tunnisteiden siivous, listan delete- ja select all -painike, lomake ja valintaruudut, poisto (yksi, useita, kaikki), ilmoitukset, paluu hakuun, back-osoitteen rajaus, ei valintoja, tuntemattomat tunnisteet, CSRF, kirjautuminen, toisen käyttäjän viitteet, repositorio |
 
 `conftest.py` asettaa `DATABASE_URL`:n väliaikaistiedostoon ennen sovelluksen
@@ -617,6 +646,12 @@ mukaan, ladatun tiedoston nimi ja sisältö (valitut ja kaikki viitteet) sekä s
 ettei lataus kysy varmistusta, poista mitään tai muuta sivua.
 Selainkonteksti hyväksyy lataukset (`acceptDownloads`), ja tiedosto
 tallennetaan väliaikaishakemistoon.
+
+`duplicate.robot` testaa saman viitteen vahvistusikkunan selaimessa: teksti ja
+painikkeet, modaalisuus, painikkeiden tyyli (ei selaimen kohdistusreunusta),
+`add` lisää viitteen uudella avaimella, `cancel` ja Esc sulkevat ikkunan
+lomakkeen jäädessä täytetyksi, erilainen viite lisätään kysymättä sekä
+muokkauksen `save`- ja `cancel`-valinnat.
 
 ### Skriptit
 
@@ -740,6 +775,11 @@ Keskeiset valinnat koottuna; yksityiskohdat ovat viitatuissa luvuissa.
   (yksinkertaisuus, ks. luku 7).
 
 **Viitteet**
+
+* Samanlaisen viitteen voi lisätä tai tallentaa, mutta vasta vahvistuksen
+  jälkeen. Viite on sama, kun tyyppi ja kaikki kentät ovat samat avaimesta
+  riippumatta; tarkistus tehdään palvelimella, jotta se koskee kaikkia
+  tallennuksia.
 
 * Tuetut tyypit ovat `article`, `book` ja `inproceedings`; lomakkeen kentät
   vaihtuvat valitun tyypin mukaan. Tyypit ja kentät on määritelty yhdessä
