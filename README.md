@@ -106,6 +106,20 @@ Pylintin asetukset ovat tiedostossa `pyproject.toml`.
 
 GitHub Actions ajaa testit ja pylintin jokaisella pushilla ja pull requestilla.
 
+## Julkaisut
+
+Julkaisu luodaan semanttisen versionumeron tagilla:
+
+```bash
+git tag -a v1.0.0 -m "Release 1.0.0"
+git push origin v1.0.0
+```
+
+Tagin push käynnistää `Create release`-työn, joka ajaa yksikkötestit,
+Pylintin tarkistuksen ja julkaisee Docker-kuvat GitHub Container Registryyn.
+GitHub Release luodaan automaattisesti tagille. Muutoshistoria on
+[CHANGELOG.md](CHANGELOG.md)-tiedostossa.
+
 ## Ennen committia
 
 Ota Git-hook käyttöön kerran tässä työkopiossa:
