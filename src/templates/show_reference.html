@@ -7,7 +7,7 @@
   <div class="bibtex-toolbar">
     <a href="{{ back }}" class="button" id="back">back</a>
     <div class="bibtex-actions">
-      <button type="button" class="button" id="copy" data-copy-target="bibtex">copy</button>
+      <button type="button" class="button" id="copy" data-copy-target="bibtex">copy bibtex</button>
       <a href="{{ edit_url }}" class="button{% if editing %} current{% endif %}" id="edit">edit</a>
       <form action="{{ delete_url }}" method="post" id="delete-form"
             onsubmit="return confirm('Delete this reference?')">

@@ -52,35 +52,25 @@ jobs:
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
-          cat > release-notes.md <<EOF
-          # Versio ${VERSION} - Viitteidenhallinta ja BibTeX-vienti
 
-          ## Yhteenveto
+          # julkaisun kuvaus on CHANGELOG.md:n kohta "## <versio> - <päivämäärä>"
+          # seuraavaan "## "-otsikkoon asti
+          awk -v version="$VERSION" '
+            /^## / { if (found) exit; if ($2 == version) { found = 1; next } }
+            found { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > changes.md || {
+            echo "::error::CHANGELOG.md:stä puuttuu kohta '## ${VERSION} - <päivämäärä>'"
+            exit 1
+          }
+          if ! grep -q '[^[:space:]]' changes.md; then
+            echo "::error::CHANGELOG.md:n kohta ${VERSION} on tyhjä"
+            exit 1
+          fi
 
-          Tämä ensimmäinen täysimittainen julkaisu tarjoaa käyttäjille
-          Flask-pohjaisen sovelluksen lähdeviitteiden hallintaan, hakuun,
-          muokkaukseen ja BibTeX-muotoiseen vientiin.
-
-          ## Uudet ominaisuudet
-
-          - Käyttäjätunnukset: Käyttäjät voivat luoda tunnuksen sekä kirjautua sisään ja ulos.
-          - Viitteiden hallinta: Artikkelit, kirjat ja konferenssijulkaisut voidaan lisätä, muokata, listata ja poistaa.
-          - Hakutoiminnot: Yksinkertainen haku ja tarkennettu haku kenttä- sekä vuosivälisuodattimilla.
-          - BibTeX-vienti: Viitteiden tiedot voi kopioida BibTeX-muodossa suoraan LaTeX-dokumentteihin.
-          - Lähdeluettelonäkymä: BibTeX-sivulta löytyy luettavassa muodossa lähdetyyli ja täytetyt viitetiedot.
-          - Joukkopoisto: Useita viitteitä voidaan valita ja poistaa kerralla.
-          - Docker-julkaisu: Sovelluksesta on saatavilla Docker-kuva ja OKD-kubernetesmanifestit.
-
-          ## Korjaukset ja parannukset
-
-          - Viiteavain muodostetaan automaattisesti kirjoittajan ja vuoden perusteella tai se voidaan antaa itse.
-          - Lisätty kattavat yksikkötestit ja hyväksyntätestit Robot Frameworkilla.
-          - Parannettu käyttövarmuutta tietokantatoimintojen validoinnin ja virheenkäsittelyn avulla.
-          - Julkaisuprosessiin lisätty testaus, Pylint-tarkistus ja Docker-kuvien automaattinen julkaisu.
-
-          ## Tunnetut ongelmat
-
-          Tunnettuja ongelmia ei ole tällä hetkellä raportoitu.
+          {
+            cat changes.md
+            cat <<EOF
 
           ## Linkit ja lisätiedot
 
@@ -92,15 +82,16 @@ jobs:
 
           **Full Changelog:** https://github.com/${{ github.repository }}/commits/${TAG}
           EOF
+          } > release-notes.md
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" \
-              --title "Versio ${VERSION} - Viitteidenhallinta ja BibTeX-vienti" \
+              --title "Versio ${VERSION}" \
               --notes-file release-notes.md \
               --verify-tag
           else
             gh release create "$TAG" \
-              --title "Versio ${VERSION} - Viitteidenhallinta ja BibTeX-vienti" \
+              --title "Versio ${VERSION}" \
               --notes-file release-notes.md \
               --verify-tag
           fi

@@ -31,10 +31,22 @@
     return copyWithSelection(text);
   }
 
+  let timer = null;
+
   function showLabel(label) {
+    // the button keeps its size while the shorter or longer text is shown
+    if (timer === null) {
+      const size = button.getBoundingClientRect();
+      button.style.width = size.width + "px";
+      button.style.height = size.height + "px";
+    }
     button.textContent = label;
-    window.setTimeout(function () {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(function () {
       button.textContent = originalLabel;
+      button.style.width = "";
+      button.style.height = "";
+      timer = null;
     }, 2000);
   }
 

@@ -188,6 +188,18 @@ def count_references(user_id):
     return db.session.execute(sql, {"user_id": user_id}).scalar()
 
 
+def get_references_by_ids(user_id, reference_ids):
+    """Returns the given references of the user, newest first; others' ids are ignored"""
+    if not reference_ids:
+        return []
+    sql = text(
+        f"SELECT {', '.join(COLUMNS)} FROM bib_references "
+        "WHERE user_id = :user_id AND id IN :ids ORDER BY id DESC"
+    ).bindparams(bindparam("ids", expanding=True))
+    result = db.session.execute(sql, {"user_id": user_id, "ids": list(reference_ids)})
+    return [_to_reference(row) for row in result.fetchall()]
+
+
 def get_reference(user_id, reference_id):
     """Returns the reference only when it belongs to the user, otherwise None"""
     sql = text(

@@ -1,12 +1,13 @@
-// Selecting references on the list for deleting them at once.
-// The delete button is disabled (grey) while no reference is selected,
-// and the browser asks for a confirmation before deleting. The button on its
-// left selects every reference, or unselects them when all are selected.
+// Selecting references on the list for deleting them at once or for a .bib file.
+// The delete and create .bib buttons are disabled (grey) while no reference is
+// selected, and the browser asks for a confirmation before deleting.
+// Select all selects every reference, or unselects them when all are selected.
 (function () {
   const form = document.getElementById("delete-selected-form");
   const button = document.getElementById("delete-selected");
   const selectAll = document.getElementById("select-all");
-  if (!form || !button || !selectAll) {
+  const createBib = document.getElementById("create-bib");
+  if (!form || !button || !selectAll || !createBib) {
     return;
   }
 
@@ -25,6 +26,7 @@
 
   function update() {
     button.disabled = selectedCount() === 0;
+    createBib.disabled = selectedCount() === 0;
     selectAll.textContent = allSelected() ? "unselect" : "select all";
     // nothing to select when the search found nothing
     selectAll.disabled = checkboxes().length === 0;
@@ -45,6 +47,10 @@
   });
 
   form.addEventListener("submit", (event) => {
+    if (event.submitter === createBib) {
+      // the .bib file is downloaded and the list stays as it is
+      return;
+    }
     const count = selectedCount();
     const message = count === 1 ? "Delete 1 reference?" : `Delete ${count} references?`;
     if (count === 0 || !confirm(message)) {

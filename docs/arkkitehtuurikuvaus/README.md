@@ -35,6 +35,8 @@ pyproject.toml, uv.lock      riippuvuudet ja pylintin asetukset
 .githooks/pre-commit         ennen committia ajettavat tarkistukset
 .github/workflows/ci.yaml    GitHub Actions: testit ja pylint
 .github/workflows/docker.yaml  GitHub Actions: Docker-kuvan julkaisu
+.github/workflows/release.yaml  GitHub Actions: versiojulkaisu tagista
+CHANGELOG.md                 muutosloki versioittain (julkaisujen kuvaukset)
 Dockerfile, .dockerignore    sovelluksen Docker-kuva
 kustomization.yaml           OKD-julkaisun asetukset (projekti, kuva, osoite)
 manifests/                   OKD-resurssit (ks. luku 11)
@@ -62,14 +64,14 @@ src/
     login.html, register.html
     add_reference.html       viitteen lisäyslomake
     reference_fields.html    viitteen kentät (lisäys- ja muokkauslomakkeen yhteinen osa)
-    references.html          viitelistaus, haku ja valittujen viitteiden poisto
+    references.html          viitelistaus, haku, valittujen viitteiden poisto ja .bib-tiedosto
     show_reference.html      bibtex-sivu (painikkeet, BibTeX, lähdeviite, kentät)
                              ja muokkauslomake
   static/main.css            tyylit
   static/reference_form.js   lomakkeen kenttien vaihto viitetyypin mukaan
   static/copy.js             copy-painike (leikepöytä)
   static/select.js           listan valintaruudut: select all / unselect,
-                             delete-painikkeen tila ja varmistus
+                             create .bib- ja delete-painikkeen tila, varmistus
   tests/                     pytest-testit
   story_tests/               Robot Framework -testit
   instance/                  SQLite-tiedostot (ei versionhallinnassa)
@@ -181,6 +183,7 @@ tietokanta alustetaan käsin, ks. luku 11.
 | `/references/<id>/edit` | POST | vaaditaan + CSRF | Validoi ja tallentaa muutokset, ohjaa `/references/<id>` |
 | `/references/<id>/delete` | POST | vaaditaan + CSRF | Poistaa viitteen, ohjaa listaukseen (`back`-osoitteeseen) |
 | `/references/delete` | POST | vaaditaan + CSRF | Poistaa listalla valitut viitteet (`reference_id`, useita), ohjaa listaukseen (`back`) |
+| `/references/bib` | POST | vaaditaan + CSRF | Palauttaa listalla valitut viitteet ladattavana tiedostona `references.bib`; jos mitään ei valittu, ohjaa listaukseen (`back`) |
 | `/reset_db` | GET | – | Vain testitilassa: tyhjentää tietokannan ja istunnon |
 
 Epäonnistunut kirjautuminen tai rekisteröinti näyttää saman lomakkeen uudelleen
@@ -203,10 +206,10 @@ virheilmoituksen kanssa, ja käyttäjätunnus säilyy kentässä.
 * `@login_required` tarkistaa myös, että istunnon käyttäjä on yhä tietokannassa;
   jos ei ole (esim. tietokanta on luotu uudelleen), istunto tyhjennetään.
 * **CSRF:** jokainen istunto saa satunnaisen tunnisteen, joka on piilokenttänä
-  kirjautuneen käyttäjän POST-lomakkeissa (lisäys, muokkaus, poisto ja
-  valittujen viitteiden poisto) ja tarkistetaan funktiolla `check_csrf()`
-  (virheellinen tai puuttuva → 403). Kirjautumis- ja rekisteröintilomakkeissa
-  tunnistetta ei ole (istuntoa ei vielä ole).
+  kirjautuneen käyttäjän POST-lomakkeissa (lisäys, muokkaus, poisto,
+  valittujen viitteiden poisto ja .bib-tiedosto) ja tarkistetaan funktiolla
+  `check_csrf()` (virheellinen tai puuttuva → 403). Kirjautumis- ja
+  rekisteröintilomakkeissa tunnistetta ei ole (istuntoa ei vielä ole).
 * **Uloskirjautuminen** on tavallinen linkki (`GET /logout`). Haittana on, että
   ulkopuolinen sivu voi kirjata käyttäjän ulos linkillä; tämä on hyväksytty
   yksinkertaisuuden vuoksi.
@@ -452,6 +455,24 @@ viime kädessä tietokannan rajoitteella.
 * Tietokannan rakenne ei muutu, joten klusterin tietokantaa ei tarvitse luoda
   uudelleen (ks. luku 11).
 
+### .bib-tiedosto valituista viitteistä (`/references/bib`)
+
+* `select all`- ja `delete`-painikkeen välissä on `create .bib`. Se on harmaa ja
+  poissa käytöstä, kun yhtään viitettä ei ole valittu (`select.js`).
+* Painike lähettää saman lomakkeen kuin `delete` (valintaruudut, CSRF-tunniste
+  ja `back`), mutta `formaction`-attribuutti ohjaa sen osoitteeseen
+  `/references/bib`. Varmistusta ei kysytä, koska mitään ei muuteta.
+* Palvelin hakee valitut viitteet yhdellä kyselyllä vain käyttäjän omista
+  (`reference_repository.get_references_by_ids`, uusin ensin, samassa
+  järjestyksessä kuin listalla) ja palauttaa ne BibTeX-muodossa
+  (`bibtex.to_bibtex`) tyhjällä rivillä erotettuina. Vastauksen tyyppi on
+  `application/x-bibtex`, ja `Content-Disposition: attachment` saa selaimen
+  tallentamaan sen tiedostoon `references.bib`. Sivu ja valinnat pysyvät
+  ennallaan.
+* Jos yhtään omaa viitettä ei valittu, palataan listaan ilmoituksella
+  `No references selected`.
+* Tietokannan rakenne ei muutu tässäkään, joten klusterilla ei tarvita toimenpiteitä.
+
 ### BibTeX-muotoilu (`bibtex.to_bibtex`)
 
 ```
@@ -536,6 +557,7 @@ Bibtex-sivun lähdeviitelaatikon viite on APA:n kaltaisessa muodossa:
 | `add_reference_test.py` | Lisäysreitti: lomake, kaikki kolme tyyppiä, virhetilanteet, arvojen säilyminen ja escapointi, kirjautumis- ja CSRF-vaatimus |
 | `search_test.py` | Hakusanojen pilkkominen, haku jokaisesta kentästä, kirjainkoko ja ääkköset, usea sana, erikoismerkit, vain omat viitteet, listaussivun hakulomake ja tulokset, paluu hakuun |
 | `advanced_search_test.py` | Hakuparametrien siivous ja validointi, jokainen suodatin erikseen ja yhdessä, ero perushakuun, erikoismerkit, vain omat viitteet, listaussivun advanced-osio (auki/kiinni, arvojen säilyminen), osoitteen siistiminen, virheelliset arvot, paluu hakuun |
+| `bib_file_test.py` | .bib-tiedosto valituista viitteistä: painike listalla, tiedoston sisältö ja järjestys, lataus (`Content-Disposition`), erikoismerkit, ei muutoksia, ei valintoja, vain omat viitteet, CSRF, kirjautuminen, repositorio |
 | `delete_selected_test.py` | Valittujen viitteiden tunnisteiden siivous, listan delete- ja select all -painike, lomake ja valintaruudut, poisto (yksi, useita, kaikki), ilmoitukset, paluu hakuun, back-osoitteen rajaus, ei valintoja, tuntemattomat tunnisteet, CSRF, kirjautuminen, toisen käyttäjän viitteet, repositorio |
 
 `conftest.py` asettaa `DATABASE_URL`:n väliaikaistiedostoon ennen sovelluksen
@@ -589,6 +611,13 @@ valittuna, se ettei valinta avaa viitettä, poisto varmistuksineen
 (sijainti, kaikkien valinta ja valintojen poisto, tekstin vaihtuminen käsin
 valittaessa, vain hakutulokset, poissa käytöstä ilman tuloksia).
 
+`bib_file.robot` testaa .bib-tiedoston selaimessa: `create .bib` -painikkeen
+paikka `select all`- ja `delete`-painikkeen välissä, harmaannus valintojen
+mukaan, ladatun tiedoston nimi ja sisältö (valitut ja kaikki viitteet) sekä se,
+ettei lataus kysy varmistusta, poista mitään tai muuta sivua.
+Selainkonteksti hyväksyy lataukset (`acceptDownloads`), ja tiedosto
+tallennetaan väliaikaishakemistoon.
+
 ### Skriptit
 
 * `./test.sh` ajaa molemmat, `./test.sh unit` vain pytestin ja `./test.sh robot`
@@ -624,6 +653,17 @@ artefaktiksi.
 `.github/workflows/docker.yaml` käynnistyy, kun CI-ajo main-haarassa on
 valmis, ja vain jos se onnistui. Se rakentaa Docker-kuvan ja julkaisee sen
 osoitteeseen `ghcr.io/late-1/talj-projekti:latest` (ks. luku 11).
+
+`.github/workflows/release.yaml` käynnistyy, kun pushataan tagi `v*` (esim.
+`v1.1.0`). Se ajaa yksikkötestit ja pylintin, julkaisee Docker-kuvan
+tunnisteilla `<tagi>` ja `latest` ja luo tagille GitHub Releasen. Releasen
+kuvaus on `CHANGELOG.md`:n kohta `## <versio> - <päivämäärä>` seuraavaan
+`## `-otsikkoon asti, ja perään lisätään linkit (README, arkkitehtuurikuvaus,
+muutosloki, pelisäännöt, Docker-kuva). Jos kohtaa ei ole tai se on tyhjä, työ
+epäonnistuu. Uuden version kohta lisätään siis CHANGELOGiin ennen tagia.
+Koska kuva julkaistaan myös tunnisteella `latest`, jota klusteri seuraa, tagi
+tehdään mainin uusimpaan committiin; vanhemman commitin tagi palauttaisi
+klusterille vanhan version.
 
 Epäonnistunut ajo merkitsee commitin punaisella rastilla. GitHub ei voi perua jo
 pushattua committia; jos virheellisten muutosten pääsy mainiin halutaan estää
@@ -740,6 +780,10 @@ Keskeiset valinnat koottuna; yksityiskohdat ovat viitatuissa luvuissa.
   kerralla kaikki listalla näkyvät viitteet, eli hakua voi käyttää poistettavien
   rajaamiseen. Poisto vaatii varmistuksen, ja se kohdistuu vain käyttäjän
   omiin viitteisiin.
+
+* Valituista viitteistä voi ladata .bib-tiedoston (`create .bib`), jonka voi
+  liittää LaTeX-dokumenttiin sellaisenaan. Tiedosto luodaan palvelimella samalla
+  BibTeX-muotoilulla kuin bibtex-sivulla, eikä sitä tallenneta.
 
 **Bibtex-sivu**
 

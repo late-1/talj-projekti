@@ -126,7 +126,7 @@ def test_bibtex_page_has_copy_and_back_buttons(client, actions, logged_in):
     reference = own_references(actions)[0]
     page = text_of(client.get(f"/references/{reference.id}"))
 
-    copy_button = r'<button[^>]*id="copy"[^>]*data-copy-target="bibtex"[^>]*>copy</button>'
+    copy_button = r'<button[^>]*id="copy"[^>]*data-copy-target="bibtex"[^>]*>copy bibtex</button>'
     assert re.search(copy_button, page)
     assert '<a href="/references" class="button" id="back">back</a>' in page
     assert 'src="/static/copy.js"' in page

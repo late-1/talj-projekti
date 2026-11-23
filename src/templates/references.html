@@ -61,8 +61,13 @@
         </fieldset>
       </div>
 
-      {# select.js selects or unselects every reference on the list #}
-      <button type="button" class="button" id="select-all">select all</button>
+      <div class="selection-actions">
+        {# select.js selects or unselects every reference on the list #}
+        <button type="button" class="button" id="select-all">select all</button>
+        {# sends the selected references to /references/bib instead of deleting them #}
+        <button type="submit" class="button" id="create-bib" form="delete-selected-form"
+                formaction="/references/bib" disabled>create .bib</button>
+      </div>
       {# belongs to the form below; enabled by select.js when a reference is selected #}
       <button type="submit" class="button" id="delete-selected" form="delete-selected-form" disabled>delete</button>
     </div>

@@ -2,7 +2,9 @@ import secrets
 from functools import wraps
 from urllib.parse import urlencode
 
-from flask import abort, flash, jsonify, redirect, render_template, request, session
+from flask import (
+    Response, abort, flash, jsonify, redirect, render_template, request, session,
+)
 
 import bibtex
 import citation
@@ -286,6 +288,27 @@ def delete_selected_references():
     else:
         flash(f"{count} {'reference' if count == 1 else 'references'} deleted", "notice")
     return redirect(back)
+
+
+@app.route("/references/bib", methods=["POST"])
+@login_required
+def create_bib_file():
+    """Returns the references selected on the list as a .bib file to download"""
+    check_csrf()
+    back = get_back_url(request.form.get("back", ""))
+
+    ids = util.selected_ids(request.form.getlist("reference_id"))
+    references = reference_repository.get_references_by_ids(session["user_id"], ids)
+    if not references:
+        flash("No references selected")
+        return redirect(back)
+
+    content = "\n\n".join(bibtex.to_bibtex(reference) for reference in references) + "\n"
+    return Response(
+        content,
+        mimetype="application/x-bibtex",
+        headers={"Content-Disposition": 'attachment; filename="references.bib"'},
+    )
 
 
 # route for tests only

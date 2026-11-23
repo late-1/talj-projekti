@@ -29,6 +29,7 @@ Nykyiset ominaisuudet:
 * useamman viitteen poistaminen kerralla: viitteet valitaan listalta
   valintaruuduilla (tai kaikki kerralla `select all` -painikkeella) ja
   poistetaan `delete`-painikkeella
+* .bib-tiedoston luominen valituista viitteistä (`create .bib`)
 * BibTeX-sivulla BibTeXin alla viitteen tiedot luettavassa muodossa:
   lähdeluettelotyylinen viite ja kaikki täytetyt kentät
 
@@ -110,15 +111,19 @@ GitHub Actions ajaa testit ja pylintin jokaisella pushilla ja pull requestilla.
 
 Julkaisu luodaan semanttisen versionumeron tagilla:
 
+1. Lisää [CHANGELOG.md](CHANGELOG.md)-tiedoston alkuun uuden version kohta
+   muodossa `## 1.1.0 - vvvv-kk-pp`, commitoi ja pushaa se.
+2. Tee tagi mainin uusimpaan committiin ja pushaa se:
+
 ```bash
-git tag -a v1.0.0 -m "Release 1.0.0"
-git push origin v1.0.0
+git tag -a v1.1.0 -m "Release 1.1.0"
+git push origin v1.1.0
 ```
 
 Tagin push käynnistää `Create release`-työn, joka ajaa yksikkötestit,
 Pylintin tarkistuksen ja julkaisee Docker-kuvat GitHub Container Registryyn.
-GitHub Release luodaan automaattisesti tagille. Muutoshistoria on
-[CHANGELOG.md](CHANGELOG.md)-tiedostossa.
+GitHub Release luodaan automaattisesti tagille, ja sen kuvaus otetaan
+CHANGELOG.md:n kyseisen version kohdasta. Jos kohta puuttuu, työ epäonnistuu.
 
 ## Ennen committia
 
