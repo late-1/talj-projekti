@@ -1,98 +1,71 @@
-ISprintin 1 retrospektiivi
+## Sprintin 1 retrospektiivi
 
-Retrospektiivin toteutus
+### Retrospektiivin toteutus
 
-Retrospektiivi pidettiin sprintin 1 päätteeksi käyttäen kierroksiin perustuvaa menetelmää. Tiimissä on neljä jäsentä. Retrospektiivissa käytiin läpi sprintin onnistumisia, kehityskohteita ja toimintatapoja, joista olisi hyvä luopua.
+Retrospektiivi pidettiin sprintin 1 päätteeksi käyttäen kierroksiin perustuvaa menetelmää. Tiimissä on neljä jäsentä. Retrospektiivissä käytiin läpi sprintin onnistumisia, kehityskohteita ja toimintatapoja, joista olisi hyvä luopua.
 
-1. Edellisen retrospektiivin parannuskohteet
+---
+
+### 1. Edellisen retrospektiivin parannuskohteet
 
 Kyseessä oli projektin ensimmäinen retrospektiivi, joten aikaisempia parannuskohteita ei ollut käsiteltävänä.
 
-2. Kierros: Mikä sujui sprintissä hyvin?
+### 2. Kierros: Mikä sujui sprintissä hyvin?
 
 Tiimin jäsenet nostivat esille seuraavia onnistumisia:
+* **Koodin kehittäminen:** Toteuttaminen sujui hyvin ja eteni suunnitellusti.
+* **Tiimin yhteistyö:** Sisäinen yhteistyö oli sujuvaa, osallistuminen koettiin tasapuoliseksi ja ongelmia ratkaistiin yhdessä.
+* **Viestintä:** Discord osoittautui toimivaksi viestintäkanavaksi, jonka kautta pystyttiin pitämään yhteyttä, keskustelemaan ratkaisuista ja selvittämään ongelmia.
+* **Ongelmanratkaisu:** Teknisten ongelmien ratkaisemisessa pystyttiin etenemään ilman merkittäviä viivästyksiä.
 
-Koodin kehittäminen sujui hyvin ja tehtävien toteuttaminen eteni suunnitellusti.
+> **Yhteenveto:** Tiimi oli kokonaisuutena tyytyväinen sprintin työskentelyyn ja erityisesti koodin kehittämiseen liittyvään yhteistyöhön. Discordin käyttöä päätettiin jatkaa myös seuraavassa sprintissä.
 
-Tiimin sisäinen yhteistyö oli sujuvaa ja ongelmia ratkaistiin yhdessä.
+### 3. Kierros: Mitä olisi voinut tehdä paremmin?
 
-Discord osoittautui toimivaksi viestintäkanavaksi. Sen kautta pystyttiin pitämään yhteyttä, keskustelemaan ratkaisuista ja selvittämään työn aikana ilmenneitä ongelmia.
+Keskustelussa nousi esille erityisesti käyttäjätarinoiden kirjoittaminen ja niiden riittävä tarkkuus:
+* Käyttäjätarinoiden sisältö ja tavoitteet eivät aina olleet riittävän yksiselitteisiä.
+* Käyttäjätarinoiden hyväksymiskriteereitä olisi pitänyt määritellä tarkemmin.
+* Tehtävien laajuutta ja sisältöä olisi ollut hyödyllistä suunnitella tarkemmin ennen toteutuksen aloittamista.
+* Käyttäjätarinoiden tarkkuuteen liittyvät puutteet tulivat esille myös ensimmäisen sprintin arvostelussa.
 
-Tiimin jäsenet osallistuivat kehitystyöhön ja yhteistyö koettiin tasapuoliseksi.
+> **Yhteenveto:** Käyttäjätarinoiden laatimiseen tulee kiinnittää enemmän huomiota. Niiden pitäisi kuvata selkeästi, mitä käyttäjä haluaa ja millä perusteella voidaan todeta, että toiminnallisuus on toteutettu oikein.
 
-Teknisten ongelmien ratkaisemisessa pystyttiin etenemään ilman merkittäviä viivästyksiä.
-
-Yhteenveto: Tiimi oli kokonaisuutena tyytyväinen sprintin työskentelyyn ja erityisesti koodin kehittämiseen liittyvään yhteistyöhön. Discordin käyttöä päätettiin jatkaa myös seuraavassa sprintissä.
-
-3. Kierros: Mitä olisi voinut tehdä paremmin?
-
-Keskustelussa nousi esille erityisesti käyttäjätarinoiden kirjoittaminen ja niiden riittävä tarkkuus.
-
-Käyttäjätarinoiden sisältö ja tavoitteet eivät aina olleet riittävän yksiselitteisiä.
-
-Käyttäjätarinoiden hyväksymiskriteereitä olisi pitänyt määritellä tarkemmin.
-
-Tehtävien laajuutta ja sisältöä olisi ollut hyödyllistä suunnitella tarkemmin ennen toteutuksen aloittamista.
-
-Käyttäjätarinoiden tarkkuuteen liittyvät puutteet tulivat esille myös ensimmäisen sprintin arvostelussa.
-
-Yhteenveto: Käyttäjätarinoiden laatimiseen tulee kiinnittää enemmän huomiota. Niiden pitäisi kuvata selkeästi, mitä käyttäjä haluaa ja millä perusteella voidaan todeta, että toiminnallisuus on toteutettu oikein.
-
-4. Kierros: Mitä tekemistä pitäisi lopettaa?
+### 4. Kierros: Mitä tekemistä pitäisi lopettaa?
 
 Keskustelussa tunnistettiin seuraavia toimintatapoja, joita tulisi välttää:
+* Käyttäjätarinoiden siirtäminen toteutukseen ennen kuin niiden sisältö ja tavoitteet ovat riittävän selkeitä.
+* Liian yleisellä tasolla kirjoitettujen tehtävien lisääminen sprintin backlogiin.
+* Tehtävien toteutuksen aloittaminen ilman yhteistä käsitystä niiden vaatimuksista ja hyväksymiskriteereistä.
 
-Käyttäjätarinoiden siirtäminen toteutukseen ennen kuin niiden sisältö ja tavoitteet ovat riittävän selkeitä.
+> **Yhteenveto:** Epäselvien tehtävien toteuttamista suoraan ilman yhteistä tarkentamista tulee välttää. Tarvittaessa käyttäjätarina täsmennetään yhdessä ennen työn aloittamista.
 
-Liian yleisellä tasolla kirjoitettujen tehtävien lisääminen sprintin backlogin.
-
-Tehtävien toteutuksen aloittaminen ilman yhteistä käsitystä niiden vaatimuksista ja hyväksymiskriteereistä.
-
-Yhteenveto: Epäselvien tehtävien toteuttamista suoraan ilman yhteistä tarkentamista tulee välttää. Tarvittaessa käyttäjätarina täsmennetään yhdessä ennen työn aloittamista.
-
-5. Päätetyt parannuskohteet seuraavaan sprinttiin
+### 5. Päätetyt parannuskohteet seuraavaan sprinttiin
 
 Seuraavat kolme parannuskohdetta valittiin seuraavaan sprinttiin:
+* **Käyttäjätarinoiden hyväksymiskriteerit:** Jokaiselle sprinttiin valittavalle käyttäjätarinalle määritellään vähintään yksi selkeä ja testattavissa oleva hyväksymiskriteeri ennen toteutuksen aloittamista.
+* **Käyttäjätarinoiden yhteinen katselmointi:** Kaikki seuraavan sprintin käyttäjätarinat käydään yhdessä läpi ennen niiden siirtämistä sprintin backlogiin. Tiimi varmistaa, että kaikki ymmärtävät tehtävän tavoitteen ja laajuuden.
+* **Tehtävien tarkentaminen:** Käyttäjätarinat jaetaan tarvittaessa pienemmiksi tehtäviksi, jotta niiden sisältö ja toteutuksen valmistuminen voidaan arvioida yksiselitteisesti.
 
-Käyttäjätarinoiden hyväksymiskriteerit: Jokaiselle sprinttiin valittavalle käyttäjätarinalle määritellään vähintään yksi selkeä ja testattavissa oleva hyväksymiskriteeri ennen toteutuksen aloittamista.
+Parannuskohteet lisätään seuraavan sprintin backlogiin erillisinä tehtävinä, joille nimetään vastuuhenkilöt:
 
-Käyttäjätarinoiden yhteinen katselmointi: Kaikki seuraavan sprintin käyttäjätarinat käydään yhdessä läpi ennen niiden siirtämistä sprintin backlogin. Tiimi varmistaa, että kaikki ymmärtävät tehtävän tavoitteen ja laajuuden.
+| Parannuskohde | Vastuuhenkilö |
+| :--- | :--- |
+| Hyväksymiskriteerien määrittely käyttäjätarinoille | Lauri |
+| Käyttäjätarinoiden yhteinen katselmointi | Jyrki |
+| Tehtävien jakaminen tarvittaessa pienempiin kokonaisuuksiin | Tomi |
 
-Tehtävien tarkentaminen: Käyttäjätarinat jaetaan tarvittaessa pienemmiksi tehtäviksi, jotta niiden sisältö ja toteutuksen valmistuminen voidaan arvioida yksiselitteisesti.
-
-Parannuskohteet lisätään seuraavan sprintin backlogiin erillisinä tehtävinä, joille nimetään vastuuhenkilöt.
-
-Parannuskohde
-
-Vastuuhenkilö
-
-Hyväksymiskriteerien määrittely käyttäjätarinoille
-
-Lauri
-
-Käyttäjätarinoiden yhteinen katselmointi
-
-Jyrki
-
-Tehtävien jakaminen tarvittaessa pienempiin kokonaisuuksiin
-
-Tomi
-
-6. Muita tunnistettuja mahdollisia parannuskohteita
+### 6. Muita tunnistettuja mahdollisia parannuskohteita
 
 Keskustelussa nousi esille myös seuraavia vaihtoehtoja, joita voidaan hyödyntää tulevissa sprinteissä:
+* Jokaiselle käyttäjätarinalle arvioidaan toteutuksen valmistumisen edellytykset ennen sprintin alkua.
+* Sprintin aikana havaituista epäselvyyksistä ilmoitetaan Discordissa heti, jotta ne eivät jää odottamaan myöhempää selvittämistä.
+* Jokaiselle tehtävälle nimetään vastuuhenkilö jo sprintin suunnitteluvaiheessa.
+* Käyttäjätarinoiden valmistumisen yhteydessä tarkistetaan, että kaikki niille määritellyt hyväksymiskriteerit täyttyvät.
+* Sprintin aikana varataan aikaa myös toteutettujen toiminnallisuuksien testaamiseen ja kokonaisuuden tarkistamiseen.
 
-Jokaiselle käyttäjätarinalle arvioidaan toteutuksen valmistumisen edellytykset ennen sprintin alkua.
+---
 
-Sprintin aikana havaituista epäselvyyksistä ilmoitetaan Discordissa heti, jotta ne eivät jää odottamaan myöhempää selvittämistä.
-
-Jokaiselle tehtävälle nimetään vastuuhenkilö jo sprintin suunnitteluvaiheessa.
-
-Käyttäjätarinoiden valmistumisen yhteydessä tarkistetaan, että kaikki niille määritellyt hyväksymiskriteerit täyttyvät.
-
-Sprintin aikana varataan aikaa myös toteutettujen toiminnallisuuksien testaamiseen ja kokonaisuuden tarkistamiseen.
-
-7. Yhteenveto
+### 7. Yhteenveto
 
 Ensimmäinen sprintti onnistui tiimin yhteistyön ja teknisen toteutuksen näkökulmasta hyvin. Erityisesti viestintä Discordissa ja ongelmien yhteinen ratkaiseminen toimivat tarkoituksenmukaisesti.
 
