@@ -88,19 +88,25 @@ Every reference has a checkbox in the lower right corner of its box
         Should Be True  2 <= ${bottom_gap} <= 8
     END
 
-Checkbox has the same line as the box of the reference
-    ${card_color}=  Get Style  .reference-card >> nth=0  border-top-color
-    Get Style  .reference-select >> nth=0  border-top-color  ==  ${card_color}
+Checkbox has a darker border than the reference box
+    Get Style  .reference-card >> nth=0  border-top-color  ==  rgb(217, 217, 217)
+    Get Style  .reference-select >> nth=0  border-top-color  ==  rgb(136, 136, 136)
     Get Style  .reference-select >> nth=0  border-top-style  ==  solid
     Get Style  .reference-select >> nth=0  border-top-width  ==  1px
 
-Selected checkbox shows a cross
+Selected checkbox shows a dark cross on a green background
+    Get Style  .reference-select >> nth=0  background-color  ==  rgb(255, 255, 255)
     Get Style  .reference-select >> nth=0  background-image  ==  none
     Select  0
     Get Checkbox State  .reference-select >> nth=0  ==  checked
-    Get Style  .reference-select >> nth=0  background-image  *=  linear-gradient
-    ${card_color}=  Get Style  .reference-card >> nth=0  border-top-color
-    Get Style  .reference-select >> nth=0  background-image  *=  ${card_color}
+    Get Style  .reference-select >> nth=0  background-color  ==  rgb(200, 230, 201)
+    Get Style  .reference-select >> nth=0  background-image  *=  linear-gradient(to right top
+    Get Style  .reference-select >> nth=0  background-image  *=  linear-gradient(to right bottom
+    Get Style  .reference-select >> nth=0  background-image  *=  rgb(51, 51, 51)
+    Select  0
+    Get Checkbox State  .reference-select >> nth=0  ==  unchecked
+    Get Style  .reference-select >> nth=0  background-color  ==  rgb(255, 255, 255)
+    Get Style  .reference-select >> nth=0  background-image  ==  none
 
 Selecting does not open the reference
     Select  0

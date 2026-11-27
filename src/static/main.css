@@ -382,19 +382,20 @@ input[type="submit"]:hover,
   margin: 0;
   appearance: none;
   -webkit-appearance: none;
-  border: 1px solid var(--line);
+  border: 1px solid #888888;
   border-radius: 0;
   background: var(--background);
   cursor: pointer;
 }
 
 .reference-select:checked {
-  /* a cross from corner to corner, drawn with the same line as the box */
+  background-color: #c8e6c9;
+  /* a cross from corner to corner */
   background-image:
-    linear-gradient(to top right, transparent calc(50% - 0.5px), var(--line) calc(50% - 0.5px),
-      var(--line) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
-    linear-gradient(to bottom right, transparent calc(50% - 0.5px), var(--line) calc(50% - 0.5px),
-      var(--line) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+    linear-gradient(to top right, transparent calc(50% - 0.5px), #333333 calc(50% - 0.5px),
+      #333333 calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+    linear-gradient(to bottom right, transparent calc(50% - 0.5px), #333333 calc(50% - 0.5px),
+      #333333 calc(50% + 0.5px), transparent calc(50% + 0.5px));
 }
 
 .reference-select:focus-visible {
