@@ -44,7 +44,7 @@ src/
   index.py                   käynnistää palvelimen
   app.py                     reitit ja istunnon käsittely
   config.py                  Flask-sovellus, asetukset, tietokantayhteys
-  db_helper.py               taulujen luonti, tyhjennys ja nollaus
+  db_helper.py               taulujen luonti, tyhjennys, nollaus ja päivitys
   schema.sql                 tietokannan taulut
   util.py                    syötteiden validointi, viiteavaimen muodostus,
                              hakusanojen pilkkominen, hakuehtojen siivous
@@ -64,12 +64,14 @@ src/
     login.html, register.html
     add_reference.html       viitteen lisäyslomake
     reference_fields.html    viitteen kentät (lisäys- ja muokkauslomakkeen yhteinen osa)
+    type_choice.html         tyypin valinta ja more-valikko (lomakkeet ja advanced-haku)
     references.html          viitelistaus, haku, valittujen viitteiden poisto ja .bib-tiedosto
     show_reference.html      bibtex-sivu (painikkeet, BibTeX, lähdeviite, kentät)
                              ja muokkauslomake
     duplicate_dialog.html    vahvistusikkuna saman viitteen lisäämiselle tai tallentamiselle
   static/main.css            tyylit
   static/reference_form.js   lomakkeen kenttien vaihto viitetyypin mukaan
+  static/type_choice.js      more-valikon sulkeminen ja valitun tyypin nimi
   static/copy.js             copy-painike (leikepöytä)
   static/dialog.js           saman viitteen vahvistusikkunan avaus
   static/select.js           listan valintaruudut: select all / unselect,
@@ -127,11 +129,13 @@ CREATE TABLE users (
 CREATE TABLE bib_references (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users,
-  entry_type TEXT NOT NULL,          -- article | book | inproceedings
+  entry_type TEXT NOT NULL,          -- article | book | ... (ks. luku 8)
   cite_key TEXT NOT NULL,
-  author TEXT NOT NULL, title TEXT NOT NULL, year TEXT NOT NULL,
-  journal TEXT, booktitle TEXT, publisher TEXT, volume TEXT, number TEXT,
-  pages TEXT, address TEXT, edition TEXT, isbn TEXT, doi TEXT,
+  author TEXT, editor TEXT, title TEXT, journal TEXT, booktitle TEXT,
+  chapter TEXT, school TEXT, institution TEXT, organization TEXT,
+  howpublished TEXT, publisher TEXT, year TEXT, month TEXT, volume TEXT,
+  number TEXT, series TEXT, pages TEXT, address TEXT, edition TEXT,
+  isbn TEXT, doi TEXT, url TEXT, note TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (user_id, cite_key)
 );
@@ -141,6 +145,9 @@ CREATE TABLE bib_references (
 * Jokaisella BibTeX-kentällä on oma sarakkeensa (ei erillistä avain–arvo-taulua).
   Kenttiä on vähän, ja näin kenttäkohtainen haku on suoraviivainen.
   Kentät, jotka eivät kuulu viitteen tyyppiin tai ovat tyhjiä, ovat `NULL`.
+  Yksikään kenttä ei ole tietokannassa pakollinen, koska pakolliset kentät
+  vaihtelevat tyypeittäin (esim. `misc`-viitteellä ei ole yhtään); ne
+  tarkistetaan validoinnissa.
 * Kaikki kentät ovat tekstiä, myös `year`, `volume` ja `number`, koska BibTeX
   käsittelee niitä tekstinä (esim. `number = {3-4}`).
 * `UNIQUE (user_id, cite_key)` takaa, että avain on uniikki käyttäjäkohtaisesti.
@@ -154,15 +161,33 @@ CREATE TABLE bib_references (
 | Funktio / komento | Toiminta |
 | --- | --- |
 | `setup_db()` / `uv run python src/db_helper.py` | Pudottaa taulut ja luo ne uudelleen (tyhjä tietokanta). |
-| `setup_db_if_missing()` / `... db_helper.py --if-missing` | Luo puuttuvat taulut ja säilyttää olemassa olevan datan. `run.sh` käyttää tätä, joten data säilyy käynnistysten välillä ja uudet taulut ilmestyvät vanhaan tietokantaan itsestään. |
+| `setup_db_if_missing()` / `... db_helper.py --if-missing` | Luo puuttuvat taulut ja päivittää vanhentuneet taulut (`migrate_tables()`) säilyttäen olemassa olevan datan. `run.sh` käyttää tätä, joten data säilyy käynnistysten välillä ja rakenteen muutokset tulevat vanhaan tietokantaan itsestään. |
 | `reset_db()` | Poistaa rivit kaikista tauluista. Robot-testit kutsuvat tätä reitin `/reset_db` kautta. |
 
 Taulut pudotetaan ja tyhjennetään käänteisessä luontijärjestyksessä, jotta
 viiteavaimet eivät estä sitä.
 
-Varsinaisia migraatioita ei ole: uusi taulu syntyy automaattisesti, mutta jos
-olemassa olevan taulun sarakkeet muuttuvat, tietokanta on luotava uudelleen
-komennolla `uv run python src/db_helper.py` (data häviää).
+**Rakenteen päivitys (`migrate_tables`).** Funktio vertaa tietokannan
+jokaisen taulun sarakkeita (nimi, tyyppi, `NOT NULL`, oletusarvo,
+pääavain) `schema.sql`:ään. Vertailukohta saadaan luomalla skeema tyhjään
+muistitietokantaan, joten SQLite itse kertoo, millaiset sarakkeet ovat.
+Jos taulu poikkeaa, se rakennetaan uudelleen, koska SQLite ei osaa muuttaa
+saraketta `ALTER TABLE`-lauseella:
+
+1. Uusi taulu luodaan nimellä `<taulu>_new` skeeman mukaan.
+2. Rivit kopioidaan sinne samoilla `id`:illä niistä sarakkeista, jotka ovat
+   molemmissa. Uudet sarakkeet jäävät tyhjiksi, ja skeemasta poistuneet
+   sarakkeet jätetään pois.
+3. Vasta onnistuneen kopioinnin jälkeen vanha taulu poistetaan, uusi
+   nimetään vanhan nimiseksi ja sen indeksit luodaan.
+
+Jos kopiointi epäonnistuu, väliaikainen taulu poistetaan ja vanha jää
+ennalleen. Ajantasaiseen tietokantaan funktio ei tee mitään, joten sen voi
+ajaa toistuvasti. Näin esimerkiksi uusien viitetyyppien sarakkeet ja
+`author`-, `title`- ja `year`-sarakkeiden muuttuminen valinnaisiksi tulivat
+olemassa olevaan tietokantaan ilman, että data hävisi. Kokonaan uusi
+tietokanta luodaan edelleen komennolla `uv run python src/db_helper.py`
+(data häviää).
 
 Klusterilla `run.sh`:ää ei ajeta, joten tauluja ei luoda käynnistyksessä:
 tietokanta alustetaan käsin, ks. luku 11.
@@ -231,14 +256,36 @@ sinne (ja uusi kenttä sarakkeeksi `schema.sql`:ään).
 | `article` | author, title, journal, year | volume, number, pages, doi |
 | `book` | author, title, publisher, year | address, edition, isbn |
 | `inproceedings` | author, title, booktitle, year | pages, publisher, doi |
+| `booklet` | title | author, howpublished, address, month, year, note |
+| `conference` | author, title, booktitle, year | editor, pages, series, organization, publisher, doi |
+| `inbook` | author, title, chapter, publisher, year | editor, pages, volume, series, address, edition, month, note |
+| `incollection` | author, title, booktitle, publisher, year | editor, chapter, pages, volume, series, address, edition, month, note |
+| `manual` | title | author, organization, address, edition, month, year, note |
+| `mastersthesis` | author, title, school, year | address, month, note |
+| `misc` | – | author, title, howpublished, month, year, note, url |
+| `phdthesis` | author, title, school, year | address, month, note |
+| `proceedings` | title, year | editor, volume, series, address, month, organization, publisher, note |
+| `techreport` | author, title, institution, year | number, address, month, note |
+| `unpublished` | author, title, note | month, year |
+
+* Kolme ensimmäistä ovat päätyyppejä (`MAIN_TYPES`), jotka näkyvät
+  valinnoissa sellaisinaan; muut (`MORE_TYPES`) ovat `more`-valikossa.
+* Uudet tyypit noudattavat BibTeXin vakiomäärittelyä kahdella
+  yksinkertaistuksella: `inbook` vaatii luvun (BibTeX: luku tai sivut), ja
+  BibTeXin `type`-kenttä (esim. raportin laji) jätetään pois. `url` ei ole
+  klassisen BibTeXin vakiokenttä, mutta lähes kaikki tyylit tukevat sitä.
+* `conference` on `inproceedings`-tyypin vanha nimi; kentät ovat samat
+  lisättynä editor-, series- ja organization-kentillä.
 
 ### Validointi (`util.validate_reference`, `util.validate_cite_key`)
 
 * Tyypin on oltava jokin tuetuista.
 * Pakolliset kentät eivät saa olla tyhjiä.
 * Arvoista poistetaan ylimääräiset välilyönnit ja rivinvaihdot.
-* `year` on nelinumeroinen luku.
-* Enimmäispituus: author, title, journal ja booktitle 1000 merkkiä, muut 200.
+* `year` on nelinumeroinen luku, jos se on annettu (osalla tyypeistä se on
+  valinnainen).
+* Enimmäispituus: author, editor, title, journal, booktitle, howpublished, url
+  ja note 1000 merkkiä, muut 200.
 * Kentät, jotka eivät kuulu valittuun tyyppiin, jätetään tallentamatta, vaikka
   ne lähetettäisiin lomakkeessa.
 * Kirjoittajat syötetään BibTeX-muodossa: useampi kirjoittaja erotetaan sanalla
@@ -254,12 +301,15 @@ sinne (ja uusi kenttä sarakkeeksi `schema.sql`:ään).
 Kun key-kenttä jätetään tyhjäksi:
 
 1. Otetaan ensimmäinen kirjoittaja (teksti ennen ensimmäistä `and`-sanaa).
+   Jos kirjoittajaa ei ole, käytetään ensimmäistä toimittajaa (`editor`).
 2. Sukunimi on pilkkua edeltävä osa (`Martin, Robert`) tai pilkuttomassa
    muodossa viimeinen sana (`Robert Martin`).
 3. Sukunimi muutetaan pieniksi kirjaimiksi, aksentit poistetaan (`Mäkelä` →
    `makela`) ja muut kuin a–z ja 0–9 pudotetaan (`van der Berg` → `vanderberg`).
-   Jos mitään ei jää jäljelle, käytetään sanaa `ref`.
-4. Perään lisätään vuosi: `martin2008`.
+   Jos kirjoittajaa eikä toimittajaa ole, käytetään samoin käsiteltyä otsikon
+   ensimmäistä sanaa (`User Guide` → `user`). Jos mitään ei jää jäljelle,
+   käytetään sanaa `ref`.
+4. Perään lisätään vuosi, jos se on annettu: `martin2008`.
 5. Jos avain on käyttäjällä jo käytössä, kokeillaan `martin2008a`, `…b`, …, `…z`,
    `…aa`, … kunnes löytyy vapaa.
 
@@ -271,6 +321,16 @@ viime kädessä tietokannan rajoitteella.
 
 * Tyyppi valitaan lomakkeen yläreunasta (radiopainikkeet, jotka näyttävät
   tekstilinkeiltä; valittu on alleviivattu kuten yläpalkissa).
+* Päätyyppien vieressä on `more`-valikko (`type_choice.html`), josta muut
+  tyypit valitaan. Se näyttää samalta kuin muut valinnat, ja sen perässä on
+  ohuella viivalla piirretty kulma (`summary::after`), joka kääntyy ylöspäin
+  valikon ollessa auki. Valikko on `<details>`-elementti, jonka sisällä ovat
+  samannimiset radiopainikkeet, joten se toimii ilman JavaScriptiä ja
+  `reference_form.js` reagoi myös sen valintoihin.
+* Kun valikosta on valittu tyyppi, sanan `more` tilalla näkyy tyypin nimi
+  alleviivattuna. Palvelin renderöi nimen valmiiksi (esim. muokattaessa),
+  ja `type_choice.js` vaihtaa sen valinnan mukaan, sulkee valikon valinnan
+  jälkeen sekä Escillä ja valikon ulkopuolelle klikattaessa.
 * Kaikki kentät ovat sivulla; `reference_form.js` näyttää valitun tyypin kentät,
   piilottaa muut ja merkitsee ne `disabled`-tilaan (jolloin selain ei lähetä
   eikä vaadi niitä) sekä päivittää `required`-määreet ja "(optional)"-merkinnät.
@@ -310,7 +370,8 @@ viime kädessä tietokannan rajoitteella.
 * Käyttäjän omat viitteet uusin ensin, kukin ohutreunaisessa laatikossa, joka on
   kokonaan linkki bibtex-sivulle. Yläpuolella viitteiden määrä.
 * Laatikossa näytetään vain olennaisin: otsikko, kirjoittajat ja vuosi,
-  julkaisupaikka (`Reference.venue`: journal, booktitle tai publisher) sekä
+  julkaisupaikka (`Reference.venue`: ensimmäinen täytetty kentistä journal,
+  booktitle, school, institution, organization, howpublished ja publisher) sekä
   oikeassa reunassa himmeämmällä tyyppi ja avain. Muut kentät (volume, pages,
   doi, …) näkyvät vain bibtex-sivulla.
 * Tyhjässä listassa on linkki lisäyssivulle.
@@ -357,11 +418,11 @@ viime kädessä tietokannan rajoitteella.
   | --- | --- | --- | --- |
   | author | `author` | author | jokainen sana löytyy |
   | title | `title` | title | jokainen sana löytyy |
-  | published in | `venue` | journal, booktitle ja publisher | jokainen sana löytyy jostakin näistä |
+  | published in | `venue` | journal, booktitle, school, institution, organization, howpublished ja publisher | jokainen sana löytyy jostakin näistä |
   | key | `key` | viiteavain | jokainen sana löytyy |
   | from year | `year_from` | year | vuosi ≥ arvo |
   | to year | `year_to` | year | vuosi ≤ arvo |
-  | type | `type` | viitteen tyyppi | täsmälleen sama (`any` = ei rajausta) |
+  | type | `type` | viitteen tyyppi | täsmälleen sama (`any` = ei rajausta); muut kuin päätyypit `more`-valikossa kuten lisäyslomakkeessa |
 
 * Kaikki ehdot yhdistetään JA-ehdoin keskenään ja perushakukentän kanssa.
   Tekstikentissä pätevät samat säännöt kuin perushaussa (sanan osa riittää,
@@ -518,7 +579,7 @@ viime kädessä tietokannan rajoitteella.
 * Sivuvälin yksittäinen viiva numeroiden välissä muutetaan BibTeXin
   kaksoisviivaksi (`12-34` → `12--34`).
 * Merkit `&`, `%` ja `#` escapoidaan (`\&`), ellei käyttäjä ole jo tehnyt sitä.
-  Kentät `doi` ja `isbn` kirjoitetaan sellaisinaan.
+  Kentät `doi`, `isbn` ja `url` kirjoitetaan sellaisinaan.
 * Muuhun sisältöön ei kosketa: ääkköset säilyvät UTF-8:na (toimii nykyisillä
   LaTeX-asennuksilla), ja käyttäjä voi kirjoittaa itse LaTeX-merkintää, esim.
   `{UNIX}` isojen kirjainten suojaamiseksi tai `$O(n)$`.
@@ -533,7 +594,22 @@ Bibtex-sivun lähdeviitelaatikon viite on APA:n kaltaisessa muodossa:
 | --- | --- |
 | article | Kirjoittajat (vuosi). Otsikko. *Journal*, *volume*(number), sivut. DOI |
 | book | Kirjoittajat (vuosi). *Otsikko* (edition ed.). Address: Publisher. ISBN |
-| inproceedings | Kirjoittajat (vuosi). Otsikko. In *Booktitle* (pp. sivut). Publisher. DOI |
+| inproceedings, conference | Kirjoittajat (vuosi). Otsikko. In Toimittajat (Eds.), *Booktitle* (pp. sivut). Publisher. Organization. DOI |
+| booklet | Kirjoittajat (vuosi). *Otsikko*. Howpublished. Address. |
+| inbook | Kirjoittajat (vuosi). *Otsikko* (Chapter luku, pp. sivut, edition ed.). Address: Publisher. |
+| incollection | Kirjoittajat (vuosi). Otsikko (Chapter luku). In Toimittajat (Eds.), *Booktitle* (pp. sivut). Address: Publisher. |
+| manual | Kirjoittajat (vuosi). *Otsikko* (edition ed.). Address: Organization. |
+| mastersthesis | Kirjoittajat (vuosi). *Otsikko*. [Master's thesis, School]. Address. |
+| phdthesis | Kirjoittajat (vuosi). *Otsikko*. [Doctoral dissertation, School]. Address. |
+| misc | Kirjoittajat (vuosi). *Otsikko*. Howpublished. |
+| proceedings | Toimittajat (Eds.) (vuosi). *Otsikko* (Vol. volume). Series. Address: Publisher. Organization. |
+| techreport | Kirjoittajat (vuosi). *Otsikko* (Report No. number). Address: Institution. |
+| unpublished | Kirjoittajat (vuosi). *Otsikko*. [Unpublished manuscript]. |
+
+* Jos kirjoittajia ei ole, alkuun tulevat toimittajat merkinnällä `(Ed.)` tai
+  `(Eds.)`. Jos ei kumpiakaan, otsikko siirtyy alkuun ja vuosi sen perään:
+  `Otsikko. (2020). …`. Puuttuva vuosi näytetään muodossa `(n.d.)`.
+* Kaikilla tyypeillä loppuun lisätään note, DOI ja URL, jos ne on annettu.
 
 * Valinnaiset kentät jätetään pois, jos ne ovat tyhjiä.
 * Kirjoittajat erotetaan `and`-sanan kohdalta ja yhdistetään muotoon
@@ -574,7 +650,7 @@ Bibtex-sivun lähdeviitelaatikon viite on APA:n kaltaisessa muodossa:
 | --- | --- |
 | `validation_test.py` | Käyttäjätunnuksen ja salasanan säännöt |
 | `user_repository_test.py` | Käyttäjän luonti, hajautus, uniikkius, kirjautumisen tarkistus |
-| `db_helper_test.py` | Taulujen luonti, nollaus ja tyhjennys |
+| `db_helper_test.py` | Taulujen luonti, nollaus ja tyhjennys; vanhan tietokannan päivitys (data, tunnisteet, uudet ja valinnaiset sarakkeet, indeksi ja rajoitteet säilyvät, vain kerran, epäonnistunut kopiointi jättää vanhan taulun) |
 | `login_test.py` | Reitit Flaskin testiasiakkaalla: ohjaukset, rekisteröinti, kirjautuminen, uloskirjautuminen, yläpalkki, `/reset_db` |
 | `reference_validation_test.py` | Tyyppimäärittelyt, viitteen ja avaimen validointi, aaltosulkeiden täsmäys, sukunimen poiminta, avaimen generointi |
 | `reference_repository_test.py` | Viitteen tallennus ja luku, avaimen uniikkius ja generointi, käyttäjäkohtaisuus, erikoismerkit, viiteavainrajoite |
@@ -587,6 +663,7 @@ Bibtex-sivun lähdeviitelaatikon viite on APA:n kaltaisessa muodossa:
 | `advanced_search_test.py` | Hakuparametrien siivous ja validointi, jokainen suodatin erikseen ja yhdessä, ero perushakuun, erikoismerkit, vain omat viitteet, listaussivun advanced-osio (auki/kiinni, arvojen säilyminen), osoitteen siistiminen, virheelliset arvot, paluu hakuun |
 | `bib_file_test.py` | .bib-tiedosto valituista viitteistä: painike listalla, tiedoston sisältö ja järjestys, lataus (`Content-Disposition`), erikoismerkit, ei muutoksia, ei valintoja, vain omat viitteet, CSRF, kirjautuminen, repositorio |
 | `duplicate_test.py` | Saman viitteen tunnistus (sama tyyppi ja kentät, avaimesta riippumatta; yksi kenttä, tyyppi tai käyttäjä eri; muokattava viite ohitetaan), vahvistusikkuna lisäyksessä ja muokkauksessa, mitään ei tallenneta ennen vahvistusta, arvojen säilyminen, `confirm_duplicate`, ei ikkunaa tavallisesti |
+| `more_types_test.py` | Uusien tyyppien kentät ja pakolliset kentät, validointi, avain ilman kirjoittajaa tai vuotta, BibTeX ja lähdeluettelomuoto jokaiselle tyypille, listaus (toimittaja, n.d., julkaisupaikka), haku uusista kentistä ja tyypeistä, more-valikko lisäys- ja muokkauslomakkeessa sekä haussa |
 | `delete_selected_test.py` | Valittujen viitteiden tunnisteiden siivous, listan delete- ja select all -painike, lomake ja valintaruudut, poisto (yksi, useita, kaikki), ilmoitukset, paluu hakuun, back-osoitteen rajaus, ei valintoja, tuntemattomat tunnisteet, CSRF, kirjautuminen, toisen käyttäjän viitteet, repositorio |
 
 `conftest.py` asettaa `DATABASE_URL`:n väliaikaistiedostoon ennen sovelluksen
@@ -652,6 +729,14 @@ painikkeet, modaalisuus, painikkeiden tyyli (ei selaimen kohdistusreunusta),
 `add` lisää viitteen uudella avaimella, `cancel` ja Esc sulkevat ikkunan
 lomakkeen jäädessä täytetyksi, erilainen viite lisätään kysymättä sekä
 muokkauksen `save`- ja `cancel`-valinnat.
+
+`more_types.robot` testaa `more`-valikon selaimessa: sijainti päätyyppien
+vieressä samalla rivillä, valikon tyypit, sama ulkoasu kuin muissa
+valinnoissa ja ohut kulma, valitun tyypin nimi alleviivattuna sanan `more`
+tilalla ja tyypin kentät, paluu päätyyppiin, sulkeminen Escillä ja
+ulkopuolelle klikkaamalla, uuden tyypin viitteen lisäys, listaus ja BibTeX,
+`misc` ilman kirjoittajaa ja vuotta, muokkauslomake sekä advanced-haun
+tyyppisuodatin.
 
 ### Skriptit
 
@@ -751,16 +836,18 @@ hakea sen.
 ### Tietokanta klusterilla
 
 Tietokanta on pysyvällä levyllä ja säilyy päivitysten ja uudelleenkäynnistysten
-yli, mutta tauluja ei luoda automaattisesti. Ne luodaan ensimmäisen
-julkaisun jälkeen ja aina, kun `src/schema.sql` on muuttunut ja uusi versio on
-käynnissä (`oc rollout status deploy/dep`):
+yli, mutta tauluja ei luoda eikä päivitetä automaattisesti. Aina kun
+`src/schema.sql` on muuttunut ja uusi versio on käynnissä
+(`oc rollout status deploy/dep`), taulut päivitetään datan säilyttäen
+(luku 5, `migrate_tables`):
 
 ```sh
-oc exec deploy/dep -- python src/db_helper.py
+oc exec deploy/dep -- python src/db_helper.py --if-missing
 ```
 
-Komento pudottaa taulut ja luo ne uudelleen, joten **kaikki klusterin data
-häviää**.
+Sama komento luo taulut ensimmäisen julkaisun jälkeen. Ilman valitsinta
+`--if-missing` komento pudottaa taulut ja luo ne uudelleen, jolloin **kaikki
+klusterin data häviää**.
 
 ## 12. Päätökset
 
@@ -781,13 +868,21 @@ Keskeiset valinnat koottuna; yksityiskohdat ovat viitatuissa luvuissa.
   riippumatta; tarkistus tehdään palvelimella, jotta se koskee kaikkia
   tallennuksia.
 
-* Tuetut tyypit ovat `article`, `book` ja `inproceedings`; lomakkeen kentät
-  vaihtuvat valitun tyypin mukaan. Tyypit ja kentät on määritelty yhdessä
-  paikassa (`reference_types.py`), joten uuden tyypin lisääminen on pieni muutos.
+* Tuettuja ovat kaikki BibTeXin 14 vakiotyyppiä; lomakkeen kentät vaihtuvat
+  valitun tyypin mukaan. Yleisimmät (`article`, `book`, `inproceedings`) ovat
+  näkyvissä, muut `more`-valikossa, jotta valinta pysyy selkeänä. Tyypit ja
+  kentät on määritelty yhdessä paikassa (`reference_types.py`), joten uuden
+  tyypin lisääminen on pieni muutos.
+* Pakolliset kentät noudattavat BibTeXia, joten kirjoittaja, otsikko ja vuosi
+  eivät ole kaikille pakollisia. Tietokannassa mikään kenttä ei ole pakollinen.
+  Rakenteen muutokset tehdään `migrate_tables()`-päivityksellä, jotta
+  olemassa oleva data säilyy.
 * Viiteavain on automaattinen mutta muokattavissa: tyhjäksi jätettynä se
   generoidaan muodossa ensimmäisen kirjoittajan sukunimi + vuosi
   (`martin2008`), ja törmäyksessä perään lisätään kirjain (`martin2008a`,
-  `martin2008b`, …). Avain on uniikki käyttäjäkohtaisesti.
+  `martin2008b`, …). Ilman kirjoittajaa käytetään toimittajaa tai otsikon
+  ensimmäistä sanaa ja ilman vuotta pelkkää nimeä. Avain on uniikki
+  käyttäjäkohtaisesti.
 * Kirjoittajat ovat vapaata tekstiä BibTeX-muodossa (`and`-sanalla eroteltuna)
   eivätkä omia tietueitaan; muotoa ei pakoteta.
 * Vuosi on nelinumeroinen ja tallennetaan tekstinä, kuten muutkin kentät.
@@ -811,7 +906,8 @@ Keskeiset valinnat koottuna; yksityiskohdat ovat viitatuissa luvuissa.
   kaikkia viitteitä ei tarvitse hakea muistiin.
 * Advanced-haku on samassa lomakkeessa kuin perushaku ja toimii ilman
   JavaScriptiä (`<details>`), joten koko haku on osoitteessa.
-* Advanced-haussa journal, booktitle ja publisher on yhdistetty yhdeksi
+* Advanced-haussa julkaisupaikan kentät (journal, booktitle, school,
+  institution, organization, howpublished ja publisher) on yhdistetty yhdeksi
   "published in" -kentäksi; harvinaisemmille kentille (volume, pages, doi, …)
   ei ole omaa hakukenttää, mutta perushaku kattaa ne.
 

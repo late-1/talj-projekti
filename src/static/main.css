@@ -162,7 +162,8 @@ input[type="submit"]:hover,
 
 .type-choice {
   display: flex;
-  gap: 1.75rem;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.75rem;
   border: none;
   margin: 0 0 2rem 0;
   padding: 0;
@@ -198,6 +199,64 @@ input[type="submit"]:hover,
 .type-choice input:focus-visible + label {
   outline: 1px solid var(--text);
   outline-offset: 3px;
+}
+
+/* the "more" menu: looks like the other choices, with a thin chevron */
+
+.type-more {
+  position: relative;
+}
+
+.type-more summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.type-more summary::-webkit-details-marker {
+  display: none;
+}
+
+/* the chevron is drawn with the same thin line as the boxes */
+.type-more summary::after {
+  content: "";
+  width: 0.38em;
+  height: 0.38em;
+  border-right: 1px solid var(--text);
+  border-bottom: 1px solid var(--text);
+  transform: translateY(-0.2em) rotate(45deg);
+}
+
+.type-more[open] summary::after {
+  transform: translateY(0.1em) rotate(-135deg);
+}
+
+.type-more summary:hover .type-more-label,
+.type-more:has(input:checked) .type-more-label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.type-more summary:focus-visible {
+  outline: 1px solid var(--text);
+  outline-offset: 3px;
+}
+
+.type-more-list {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: -1rem;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--text);
+  background: var(--background);
+  white-space: nowrap;
 }
 
 .muted {

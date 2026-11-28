@@ -1,14 +1,6 @@
 {# The fields of a reference: used by the add form and the edit form #}
-    <fieldset class="type-choice">
-      <legend>type</legend>
-      {% for type in reference_types.ENTRY_TYPES %}
-      <span>
-        <input type="radio" name="entry_type" id="type-{{ type }}" value="{{ type }}"
-               {% if type == entry_type %}checked{% endif %} />
-        <label for="type-{{ type }}">{{ type }}</label>
-      </span>
-      {% endfor %}
-    </fieldset>
+    {% from "type_choice.html" import type_choice with context %}
+    {{ type_choice("entry_type", entry_type) }}
 
     <div class="reference-fields">
     {% for name, label in reference_types.FIELDS.items() %}

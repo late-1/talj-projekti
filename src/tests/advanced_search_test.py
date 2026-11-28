@@ -73,7 +73,7 @@ def test_search_filters_rejects_invalid_years(year):
 
 
 def test_search_filters_rejects_unknown_type():
-    filters, errors = search_filters({"type": "phdthesis", "year_to": "2010"})
+    filters, errors = search_filters({"type": "patent", "year_to": "2010"})
     assert filters == {"year_to": "2010"}
     assert errors == ["Unknown reference type"]
 
@@ -149,7 +149,7 @@ def test_no_filters_returns_everything(user):
     ({"type": "book"}, ["fowler1999", "martin2008"]),
     ({"type": "article"}, ["dijkstra1968"]),
     ({"type": "inproceedings"}, ["xp-method"]),
-    ({"type": "phdthesis"}, []),
+    ({"type": "patent"}, []),
     # every filter has to match
     ({"author": "martin", "type": "book", "year_from": "2000"}, ["martin2008"]),
     ({"author": "martin", "title": "refactoring"}, ["fowler1999"]),
@@ -289,7 +289,7 @@ def test_advanced_part_stays_open_and_keeps_its_values(client, logged_in):
                         ("year_from", "2008"), ("year_to", "2009")]:
         assert re.search(rf'name="{name}" id="{name}" value="{value}"', page)
     assert '<input type="radio" name="type" id="type-article" value="article" checked />' in page
-    assert '<input type="radio" name="type" id="type-any" value=""  />' in page
+    assert '<input type="radio" name="type" id="type-any" value="" />' in page
 
 
 @pytest.mark.parametrize(
@@ -343,7 +343,7 @@ def test_invalid_year_does_not_remove_other_filters(client, logged_in):
 
 
 def test_unknown_type_shows_an_error_and_is_not_used(client, logged_in):
-    page = page_of(client, "/references?type=phdthesis")
+    page = page_of(client, "/references?type=patent")
     assert "Unknown reference type" in page
     assert len(titles(page)) == 3
     assert '<input type="radio" name="type" id="type-any" value="" checked />' in page

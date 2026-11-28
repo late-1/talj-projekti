@@ -99,7 +99,7 @@ def test_edit_page_shows_form_above_the_bibtex(client, actions, reference):
 
 def test_edit_form_has_the_current_values(client, actions, reference):
     page = text_of(client.get(f"/references/{reference.id}/edit"))
-    assert 'id="type-article" value="article"\n               checked' in page
+    assert 'id="type-article" value="article" checked' in page
     for name, value in [
         ("author", "Martin, Robert"), ("title", "Clean Code"),
         ("journal", "Journal of Software"), ("year", "2008"),
@@ -113,7 +113,7 @@ def test_edit_form_of_a_book_has_book_chosen(client, actions, logged_in):
     actions.add_reference(**BOOK)
     reference = own_references(actions)[0]
     page = text_of(client.get(f"/references/{reference.id}/edit"))
-    assert 'id="type-book" value="book"\n               checked' in page
+    assert 'id="type-book" value="book" checked' in page
     assert 'name="publisher" id="publisher" value="Addison-Wesley"' in page
 
 

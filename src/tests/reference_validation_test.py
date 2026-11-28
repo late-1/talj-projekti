@@ -2,7 +2,7 @@ import itertools
 
 import pytest
 
-from reference_types import ENTRY_TYPES, FIELDS, fields_of
+from reference_types import ENTRY_TYPES, FIELDS, MAIN_TYPES, fields_of
 from tests.conftest import ARTICLE, BOOK, INPROCEEDINGS
 from util import (
     UserInputError,
@@ -28,9 +28,9 @@ def test_every_field_of_every_type_is_known():
         assert not set(entry["required"]) & set(entry["optional"])
 
 
-def test_every_type_requires_author_title_and_year():
-    for entry in ENTRY_TYPES.values():
-        assert {"author", "title", "year"} <= set(entry["required"])
+def test_main_types_require_author_title_and_year():
+    for entry_type in MAIN_TYPES:
+        assert {"author", "title", "year"} <= set(ENTRY_TYPES[entry_type]["required"])
 
 
 def test_fields_of_returns_fields_in_form_order():
@@ -78,7 +78,7 @@ def test_whitespace_is_cleaned():
 
 def test_unknown_type_is_rejected():
     with pytest.raises(UserInputError, match="Unknown reference type"):
-        validate_reference("phdthesis", ARTICLE)
+        validate_reference("patent", ARTICLE)
     with pytest.raises(UserInputError, match="Unknown reference type"):
         validate_reference("", ARTICLE)
 

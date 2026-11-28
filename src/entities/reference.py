@@ -1,4 +1,4 @@
-from reference_types import fields_of
+from reference_types import VENUE_FIELDS, fields_of
 
 
 class Reference:
@@ -22,6 +22,10 @@ class Reference:
 
     @property
     def venue(self):
-        """Where the reference was published: journal, proceedings or publisher"""
-        return self.fields.get("journal") or self.fields.get("booktitle") \
-            or self.fields.get("publisher")
+        """Where the reference was published: journal, book, school, publisher, ..."""
+        return next((self.fields[name] for name in VENUE_FIELDS if name in self.fields), None)
+
+    @property
+    def creator(self):
+        """Who made the reference: the authors, or the editors when there are no authors"""
+        return self.fields.get("author") or self.fields.get("editor")

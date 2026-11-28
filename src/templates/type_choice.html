@@ -1,0 +1,35 @@
+{#
+  The choice of a reference type: the common types as such and the others in
+  the "more" menu, which shows the chosen type in place of the word more.
+  name: the name of the radio buttons; chosen: the chosen type;
+  any: whether there is also the choice "any" (value "") first.
+  type_choice.js closes the menu after a choice and updates its text.
+#}
+{% macro type_choice(name, chosen, any=False) %}
+    <fieldset class="type-choice">
+      <legend>type</legend>
+      {% if any %}
+      <span>
+        <input type="radio" name="{{ name }}" id="type-any" value=""{% if chosen not in reference_types.ENTRY_TYPES %} checked{% endif %} />
+        <label for="type-any">any</label>
+      </span>
+      {% endif %}
+      {% for type in reference_types.MAIN_TYPES %}
+      <span>
+        <input type="radio" name="{{ name }}" id="type-{{ type }}" value="{{ type }}"{% if type == chosen %} checked{% endif %} />
+        <label for="type-{{ type }}">{{ type }}</label>
+      </span>
+      {% endfor %}
+      <details class="type-more" id="type-more">
+        <summary><span class="type-more-label">{{ chosen if chosen in reference_types.MORE_TYPES else "more" }}</span></summary>
+        <div class="type-more-list">
+          {% for type in reference_types.MORE_TYPES %}
+          <span>
+            <input type="radio" name="{{ name }}" id="type-{{ type }}" value="{{ type }}"{% if type == chosen %} checked{% endif %} />
+            <label for="type-{{ type }}">{{ type }}</label>
+          </span>
+          {% endfor %}
+        </div>
+      </details>
+    </fieldset>
+{% endmacro %}

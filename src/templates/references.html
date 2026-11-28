@@ -27,7 +27,7 @@
           <input type="text" name="title" id="title" value="{{ search.title }}" maxlength="{{ limits.SEARCH_MAX_LENGTH }}" />
         </p>
         <p>
-          <label for="venue">published in (journal, proceedings or publisher)</label>
+          <label for="venue">published in (journal, book, school, publisher, …)</label>
           <input type="text" name="venue" id="venue" value="{{ search.venue }}" maxlength="{{ limits.SEARCH_MAX_LENGTH }}" />
         </p>
         <p>
@@ -46,19 +46,8 @@
                    inputmode="numeric" pattern="[0-9]{4}" title="four-digit year" />
           </p>
         </div>
-        <fieldset class="type-choice">
-          <legend>type</legend>
-          <span>
-            <input type="radio" name="type" id="type-any" value="" {% if search.type not in reference_types.ENTRY_TYPES %}checked{% endif %} />
-            <label for="type-any">any</label>
-          </span>
-          {% for type in reference_types.ENTRY_TYPES %}
-          <span>
-            <input type="radio" name="type" id="type-{{ type }}" value="{{ type }}" {% if type == search.type %}checked{% endif %} />
-            <label for="type-{{ type }}">{{ type }}</label>
-          </span>
-          {% endfor %}
-        </fieldset>
+        {% from "type_choice.html" import type_choice with context %}
+        {{ type_choice("type", search.type, any=True) }}
       </div>
 
       <div class="selection-actions">
@@ -90,15 +79,17 @@
   {% for reference in references %}
   <div class="reference-item">
   <a href="/references/{{ reference.id }}?back={{ request.full_path | urlencode }}" class="reference-card">
-    <span class="reference-title">{{ reference.title }}</span>
-    <span class="reference-authors">{{ reference.author }} ({{ reference.year }})</span>
+    <span class="reference-title">{{ reference.title or reference.cite_key }}</span>
+    <span class="reference-authors">
+      {%- if reference.creator %}{{ reference.creator }} {% endif %}({{ reference.year or "n.d." }})
+    </span>
     <span class="reference-venue muted">{{ reference.venue }}</span>
     <span class="reference-meta muted">
       <span class="reference-type">{{ reference.entry_type }}</span>
     </span>
   </a>
   <input type="checkbox" class="reference-select" name="reference_id" value="{{ reference.id }}"
-         id="select-{{ reference.id }}" form="delete-selected-form" aria-label="select {{ reference.title }}" />
+         id="select-{{ reference.id }}" form="delete-selected-form" aria-label="select {{ reference.title or reference.cite_key }}" />
   </div>
   {% endfor %}
   {% else %}
@@ -106,6 +97,7 @@
   {% endif %}
 </div>
 <script src="/static/select.js"></script>
+<script src="/static/type_choice.js"></script>
 {% else %}
 <p class="empty">No references yet. <a href="/add">Add the first one.</a></p>
 {% endif %}

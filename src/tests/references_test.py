@@ -68,9 +68,9 @@ def test_list_is_newest_first(client, actions, logged_in):
 
 
 def test_list_does_not_show_every_field(client, actions, logged_in):
-    actions.add_reference(volume="987", doi="10.1000/hidden")
+    actions.add_reference(volume="Vol-xyz", doi="10.1000/hidden")
     page = text_of(client.get("/references"))
-    assert "987" not in page
+    assert "Vol-xyz" not in page
     assert "10.1000/hidden" not in page
 
 

@@ -16,9 +16,13 @@ Nykyiset ominaisuudet:
 
 * käyttäjätunnuksen luominen, sisään- ja uloskirjautuminen
 * viitteen lisääminen lomakkeella: artikkeli (`article`), kirja (`book`) tai
-  konferenssijulkaisu (`inproceedings`)
+  konferenssijulkaisu (`inproceedings`), ja `more`-valikosta muut BibTeXin
+  vakiotyypit (`booklet`, `conference`, `inbook`, `incollection`, `manual`,
+  `mastersthesis`, `misc`, `phdthesis`, `proceedings`, `techreport`,
+  `unpublished`) niiden omine kenttineen
 * viiteavain (`\cite{avain}`) luodaan automaattisesti kirjoittajan ja vuoden
-  perusteella, tai sen voi antaa itse
+  perusteella (ilman kirjoittajaa toimittajasta tai otsikon ensimmäisestä
+  sanasta), tai sen voi antaa itse
 * omien viitteiden listaus; viitettä klikkaamalla aukeaa sen BibTeX-muoto, jonka
   saa leikepöydälle `copy`-painikkeella
 * viitteiden haku yhdellä hakukentällä, joka hakee viitteen kaikesta sisällöstä

@@ -35,8 +35,8 @@ def test_add_page_has_form(client, logged_in):
 
 def test_add_page_has_article_chosen_by_default(client, logged_in):
     page = client.get("/add").get_data(as_text=True)
-    assert 'id="type-article" value="article"\n               checked' in page
-    assert 'id="type-book" value="book"\n               checked' not in page
+    assert 'id="type-article" value="article" checked' in page
+    assert 'id="type-book" value="book" checked' not in page
 
 
 def test_add_page_form_contains_csrf_token_of_the_session(client, actions, logged_in):
@@ -106,12 +106,12 @@ def test_form_stays_on_the_added_type(client, actions, logged_in):
     assert response.headers["Location"] == "/add?type=book"
 
     page = client.get("/add?type=book").get_data(as_text=True)
-    assert 'id="type-book" value="book"\n               checked' in page
+    assert 'id="type-book" value="book" checked' in page
 
 
 def test_unknown_type_in_address_shows_default_type(client, logged_in):
-    page = client.get("/add?type=phdthesis").get_data(as_text=True)
-    assert 'id="type-article" value="article"\n               checked' in page
+    page = client.get("/add?type=patent").get_data(as_text=True)
+    assert 'id="type-article" value="article" checked' in page
 
 
 def test_add_with_own_key(client, actions, logged_in):
@@ -149,7 +149,7 @@ def test_reference_belongs_to_the_logged_in_user(client, actions, logged_in):
     ({"year": ""}, "Year is required"),
     ({"year": "abcd"}, "Year must be a four-digit number"),
     ({"title": "a" * 1001}, "Title can be at most 1000 characters long"),
-    ({"entry_type": "phdthesis"}, "Unknown reference type"),
+    ({"entry_type": "patent"}, "Unknown reference type"),
     ({"entry_type": "book"}, "Publisher is required"),
     ({"entry_type": "inproceedings"}, "Book title is required"),
     ({"cite_key": "clean code"}, "Key can only contain"),
@@ -176,7 +176,7 @@ def test_failed_add_keeps_values_in_form(client, actions, logged_in):
         publisher="Addison-Wesley", cite_key="fowler",
     )
     page = response.get_data(as_text=True)
-    assert 'id="type-book" value="book"\n               checked' in page
+    assert 'id="type-book" value="book" checked' in page
     assert 'value="Fowler, Martin"' in page
     assert 'value="Refactoring"' in page
     assert 'value="Addison-Wesley"' in page

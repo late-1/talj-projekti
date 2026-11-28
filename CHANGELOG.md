@@ -1,5 +1,32 @@
 # Muutosloki
 
+## 1.3.0
+
+### Ominaisuudet
+
+- Viitteen voi lisätä kaikilla BibTeXin vakiotyypeillä: article-, book- ja
+  inproceedings-tyyppien vieressä olevasta `more`-valikosta löytyvät
+  `booklet`, `conference`, `inbook`, `incollection`, `manual`,
+  `mastersthesis`, `misc`, `phdthesis`, `proceedings`, `techreport` ja
+  `unpublished` omine kenttineen
+- Uudet kentät: editor, chapter, school, institution, organization,
+  howpublished, month, series, url ja note
+- Viiteavain muodostetaan ilman kirjoittajaa toimittajasta tai otsikon
+  ensimmäisestä sanasta, ja vuoden puuttuessa ilman vuotta
+- Uudet tyypit näkyvät listauksessa, BibTeXissä ja lähdeluettelomuodossa, ja
+  tarkennetun haun tyyppisuodattimessa on sama `more`-valikko
+
+### Muutokset
+
+- Tietokannan rakenne päivittyy olemassa olevaan tietokantaan datan
+  säilyttäen (`db_helper.py --if-missing`); klusterilla komento ajetaan
+  julkaisun jälkeen
+
+### Laadunvarmistus
+
+- Yksikkö- ja Robot Framework -testit uusille tyypeille ja tietokannan
+  rakenteen päivitykselle
+
 ## 1.2.0 - 2026-11-23
 
 ### Ominaisuudet

@@ -2,7 +2,7 @@
 import re
 
 # Fields that are written as such: the characters have no special meaning there
-VERBATIM_FIELDS = ["doi", "isbn"]
+VERBATIM_FIELDS = ["doi", "isbn", "url"]
 
 # LaTeX special characters that people commonly type as plain text.
 # A character that is already escaped with a backslash is left alone.

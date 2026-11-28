@@ -161,7 +161,7 @@ def validate_reference(entry_type, form):
 
         fields[name] = value
 
-    if not YEAR_PATTERN.fullmatch(fields["year"]):
+    if "year" in fields and not YEAR_PATTERN.fullmatch(fields["year"]):
         raise UserInputError("Year must be a four-digit number")
 
     return fields
@@ -207,17 +207,33 @@ def first_author_last_name(author):
     return words[-1] if words else ""
 
 
-def cite_key_base(author, year):
-    """Returns the start of a generated key, for example 'martin2008'"""
-    name = first_author_last_name(author)
-    name = unicodedata.normalize("NFKD", name)
-    name = re.sub(r"[^a-z0-9]", "", name.lower())
-    return (name or "ref") + year
+def _key_part(text):
+    """Letters a-z and numbers only: Müller -> muller"""
+    text = unicodedata.normalize("NFKD", text)
+    return re.sub(r"[^a-z0-9]", "", text.lower())
 
 
-def cite_key_candidates(author, year):
+def cite_key_base(author, year, title=None):
+    """
+    Returns the start of a generated key, for example 'martin2008'.
+    Without an author, the first word of the title is used, and without
+    a year, the key has no year.
+    """
+    name = _key_part(first_author_last_name(author)) if author else ""
+    if not name and title:
+        name = next((part for part in map(_key_part, title.split()) if part), "")
+    return (name or "ref") + (year or "")
+
+
+def key_source(fields):
+    """The values that a generated key is made of: (author, year, title)"""
+    return (fields.get("author") or fields.get("editor"), fields.get("year"),
+            fields.get("title"))
+
+
+def cite_key_candidates(author, year, title=None):
     """Generates martin2008, martin2008a, ..., martin2008z, martin2008aa, ..."""
-    base = cite_key_base(author, year)
+    base = cite_key_base(author, year, title)
     yield base
 
     length = 1

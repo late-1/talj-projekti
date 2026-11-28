@@ -3,8 +3,8 @@ from sqlalchemy.exc import IntegrityError
 
 from config import db
 from entities.reference import Reference
-from reference_types import FIELDS
-from util import UserInputError, cite_key_candidates, search_words
+from reference_types import FIELDS, VENUE_FIELDS
+from util import UserInputError, cite_key_candidates, key_source, search_words
 
 COLUMNS = ["id", "user_id", "entry_type", "cite_key"] + list(FIELDS)
 
@@ -21,7 +21,7 @@ SEARCH_TEXT = _search_text(["entry_type", "cite_key"] + list(FIELDS))
 FILTER_TEXTS = {
     "author": _search_text(["author"]),
     "title": _search_text(["title"]),
-    "venue": _search_text(["journal", "booktitle", "publisher"]),
+    "venue": _search_text(VENUE_FIELDS),
     "key": _search_text(["cite_key"]),
 }
 
@@ -43,10 +43,10 @@ def get_cite_keys(user_id, exclude_id=None):
     return {row[0] for row in result.fetchall()}
 
 
-def generate_cite_key(user_id, author, year, exclude_id=None):
+def generate_cite_key(user_id, author, year, exclude_id=None, title=None):
     """Returns a key such as martin2008 that the user does not have yet"""
     used_keys = get_cite_keys(user_id, exclude_id)
-    for candidate in cite_key_candidates(author, year):
+    for candidate in cite_key_candidates(author, year, title):
         if candidate not in used_keys:
             return candidate
     return None
@@ -55,10 +55,11 @@ def generate_cite_key(user_id, author, year, exclude_id=None):
 def create_reference(user_id, entry_type, fields, cite_key=None):
     """
     Stores a validated reference. When the key is not given, it is generated
-    from the first author and the year.
+    from the first author (or editor, or the title) and the year.
     """
     if not cite_key:
-        cite_key = generate_cite_key(user_id, fields["author"], fields["year"])
+        author, year, title = key_source(fields)
+        cite_key = generate_cite_key(user_id, author, year, title=title)
 
     names = [name for name in FIELDS if name in fields]
     columns = ", ".join(["user_id", "entry_type", "cite_key"] + names)
@@ -110,8 +111,9 @@ def update_reference(user_id, reference_id, entry_type, fields, cite_key=None):
     generated again. Returns None when the user has no such reference.
     """
     if not cite_key:
+        author, year, title = key_source(fields)
         cite_key = generate_cite_key(
-            user_id, fields["author"], fields["year"], exclude_id=reference_id
+            user_id, author, year, exclude_id=reference_id, title=title
         )
 
     assignments = ", ".join(
